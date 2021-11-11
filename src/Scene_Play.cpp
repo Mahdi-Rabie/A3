@@ -49,8 +49,13 @@ Vec2 Scene_Play::gridToMidPixel(float gridX, float gridY, std::shared_ptr<Entity
     //       You must use the Entity's Animation size to position it correctly
     //       The size of the grid width and height is stored in m_gridSize.x and m_gridSize.y
     //       The bottom-left corner of the Animation should align with the bottom left of the grid cell
-                              
-    return Vec2(0, 0);
+    
+    const std::string& tempName = entity->getComponent<CAnimation>().animation.getName();
+    auto& aSize = m_game->assets().getAnimation(tempName).getSize();
+    float entityCenterX = std::abs(width() - (gridX * m_gridSize.x) - (aSize.x / 2));
+    float entityCenterY = std::abs(height() - (gridY * m_gridSize.y) - (aSize.y / 2));
+
+    return Vec2(entityCenterX, entityCenterY);
 }
                               
 void Scene_Play::loadLevel(const std::string & filename)
@@ -58,6 +63,42 @@ void Scene_Play::loadLevel(const std::string & filename)
     // reset the entity manager every time we load a level
     m_entityManager = EntityManager();
 
+    std::ifstream fin(filename);
+    std::string line;
+    while (std::getline(fin, line)) 
+    {
+        std::istringstream iss(line);
+        std::string firstWord;
+        std::string type;
+        int pos_x, pos_y;
+
+        iss >> firstWord;
+        if (firstWord == "Player") 
+        {
+            iss >> m_playerConfig.X >> m_playerConfig.Y >> m_playerConfig.CX >> m_playerConfig.CY >> m_playerConfig.SPEED >> m_playerConfig.JUMP >> m_playerConfig.MAXSPEED >> m_playerConfig.GRAVITY >> m_playerConfig.WEAPON;
+        }
+
+        else if (firstWord == "Tile")
+        {
+            iss >> type >> pos_x >> pos_y;
+            auto e = m_entityManager.addEntity("tile");
+            e->addComponent<CAnimation>(m_game->assets().getAnimation(type), true);
+            e->addComponent<CTransform>(gridToMidPixel(pos_x, pos_y, e));
+        }
+
+        else if (firstWord == "Dec")
+        {
+            iss >> type >> pos_x >> pos_y;
+            auto e = m_entityManager.addEntity("dec");
+            e->addComponent<CAnimation>(m_game->assets().getAnimation(type), true);
+            e->addComponent<CTransform>(gridToMidPixel(pos_x, pos_y, e));
+        }
+
+        else
+        {
+            std::cout << "Eror in file reading";
+        }
+    }
     // TODO: read in the level file and add the appropriate entities
     //       use the PlayerConfig struct m_playerConfig to store player properties
     //       this struct is defined at the top of Scene_Play.h
