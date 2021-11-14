@@ -35,7 +35,13 @@ void Scene_Play::init(const std::string & levelPath)
     registerAction(sf::Keyboard::T,     "TOGGLE_TEXTURE");      // Toggle drawing (T)extures
     registerAction(sf::Keyboard::C,     "TOGGLE_COLLISION");    // Toggle drawing (C)ollision Boxes
     registerAction(sf::Keyboard::G,     "TOGGLE_GRID");         // Toggle drawing (G)rid
-                              
+                       
+    registerAction(sf::Keyboard::W, "UP");                      // Go Up
+    registerAction(sf::Keyboard::A, "LEFT");                    // Go Left
+    registerAction(sf::Keyboard::D, "RIGHT");                   // Go Right
+    registerAction(sf::Keyboard::S, "DOWN");                    // Go Down
+
+
     m_gridText.setCharacterSize(12);
     m_gridText.setFont(m_game->assets().getFont("Arial"));
 
@@ -52,7 +58,7 @@ Vec2 Scene_Play::gridToMidPixel(float gridX, float gridY, std::shared_ptr<Entity
     
     const std::string& tempName = entity->getComponent<CAnimation>().animation.getName();
     auto& aSize = m_game->assets().getAnimation(tempName).getSize();
-    float entityCenterX = gridX * m_gridSize.x - (aSize.x / 2);
+    float entityCenterX = gridX * m_gridSize.x + (aSize.x / 2);
     float entityCenterY = ((height() / m_gridSize.y) - gridY)* m_gridSize.y - (aSize.y / 2);
 
     return Vec2(entityCenterX, entityCenterY);
@@ -185,6 +191,16 @@ void Scene_Play::sMovement()
     // TODO: Implement gravity's effect on the player
     // TODO: Implement the maxmimum player speed in both X and Y directions
     // NOTE: Setting an entity's scale.x to -1/1 will make it face to the left/right
+    auto& pTransform = m_player->getComponent<CTransform>();
+    auto& pInput = m_player->getComponent<CInput>();
+    Vec2 playerV(0, 0);
+    if (pInput.right)   {playerV.x += m_playerConfig.SPEED;}
+    if (pInput.left)    {playerV.x -= m_playerConfig.SPEED;}
+    if (pInput.up)      {playerV.y -= m_playerConfig.SPEED;}
+    if (pInput.down)    {playerV.y += m_playerConfig.SPEED;}
+    
+    pTransform.velocity = playerV;
+    pTransform.pos += pTransform.velocity;
 }
 
 void Scene_Play::sLifespan()
@@ -221,11 +237,19 @@ void Scene_Play::sDoAction(const Action& action)
         else if (action.name() == "TOGGLE_GRID")        { m_drawGrid = !m_drawGrid; }
         else if (action.name() == "PAUSE")              { setPaused(!m_paused); }
         else if (action.name() == "QUIT")               { onEnd(); }
+        else if (action.name() == "RIGHT")              { m_player->getComponent<CInput>().right = true; }
+        else if (action.name() == "LEFT")               { m_player->getComponent<CInput>().left = true; }
+        else if (action.name() == "UP")                 { m_player->getComponent<CInput>().up = true; }
+        else if (action.name() == "DOWN")               { m_player->getComponent<CInput>().down = true; }
         
     }
     else if (action.type() == "END")
     {
-        
+        if (action.name() == "RIGHT") { m_player->getComponent<CInput>().right = false; }
+        else if (action.name() == "LEFT") { m_player->getComponent<CInput>().left = false; }
+        else if (action.name() == "UP") { m_player->getComponent<CInput>().up = false; }
+        else if (action.name() == "DOWN") { m_player->getComponent<CInput>().down = false; }
+
     }
 }
                               
