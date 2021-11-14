@@ -52,8 +52,8 @@ Vec2 Scene_Play::gridToMidPixel(float gridX, float gridY, std::shared_ptr<Entity
     
     const std::string& tempName = entity->getComponent<CAnimation>().animation.getName();
     auto& aSize = m_game->assets().getAnimation(tempName).getSize();
-    float entityCenterX = std::abs(width() - (gridX * m_gridSize.x) - (aSize.x / 2));
-    float entityCenterY = std::abs(height() - (gridY * m_gridSize.y) - (aSize.y / 2));
+    float entityCenterX = gridX * m_gridSize.x - (aSize.x / 2);
+    float entityCenterY = ((height() / m_gridSize.y) - gridY)* m_gridSize.y - (aSize.y / 2);
 
     return Vec2(entityCenterX, entityCenterY);
 }
@@ -65,16 +65,19 @@ void Scene_Play::loadLevel(const std::string & filename)
 
     std::ifstream fin(filename);
     std::string line;
+    bool playerInput = false;
     while (std::getline(fin, line)) 
     {
         std::istringstream iss(line);
         std::string firstWord;
         std::string type;
         int pos_x, pos_y;
+        
 
         iss >> firstWord;
         if (firstWord == "Player") 
         {
+            playerInput = true;
             iss >> m_playerConfig.X >> m_playerConfig.Y >> m_playerConfig.CX >> m_playerConfig.CY >> m_playerConfig.SPEED >> m_playerConfig.JUMP >> m_playerConfig.MAXSPEED >> m_playerConfig.GRAVITY >> m_playerConfig.WEAPON;
         }
 
@@ -84,6 +87,7 @@ void Scene_Play::loadLevel(const std::string & filename)
             auto e = m_entityManager.addEntity("tile");
             e->addComponent<CAnimation>(m_game->assets().getAnimation(type), true);
             e->addComponent<CTransform>(gridToMidPixel(pos_x, pos_y, e));
+            e->addComponent<CBoundingBox>(m_game->assets().getAnimation(type).getSize());
         }
 
         else if (firstWord == "Dec")
@@ -105,31 +109,32 @@ void Scene_Play::loadLevel(const std::string & filename)
 
     // NOTE: all of the code below is sample code which shows you how to
     //       set up and use entities with the new syntax, it should be removed
-
+    if (playerInput)
+    { 
     spawnPlayer();
-                              
+    }
     // some sample entities
-    auto brick = m_entityManager.addEntity("tile");
+    //auto brick = m_entityManager.addEntity("tile");
     // IMPORTANT: always add the CAnimation component first so that gridToMidPixel can compute correctly
-    brick->addComponent<CAnimation>(m_game->assets().getAnimation("Brick"), true);
-    brick->addComponent<CTransform>(Vec2(96, 480));
+    // brick->addComponent<CAnimation>(m_game->assets().getAnimation("Brick"), true);
+    // brick->addComponent<CTransform>(Vec2(96, 480));
     // NOTE: You final code should position the entity with the grid x,y position read from the file:
     // brick->addComponent<CTransform>(gridToMidPixel(gridX, gridY, brick);
 
-    if (brick->getComponent<CAnimation>().animation.getName() == "Brick")
-    {
-        std::cout << "This could be a good way of identifying if a tile is a brick!\n";
-    }
+   // if (brick->getComponent<CAnimation>().animation.getName() == "Brick")
+    //{
+      //  std::cout << "This could be a good way of identifying if a tile is a brick!\n";
+    //}
 
-    auto block = m_entityManager.addEntity("tile");
-    block->addComponent<CAnimation>(m_game->assets().getAnimation("Block"), true);
-    block->addComponent<CTransform>(Vec2(224, 480));
+    // auto block = m_entityManager.addEntity("tile");
+    // block->addComponent<CAnimation>(m_game->assets().getAnimation("Block"), true);
+    // block->addComponent<CTransform>(Vec2(224, 480));
     // add a bounding box, this will now show up if we press the 'C' key
-    block->addComponent<CBoundingBox>(m_game->assets().getAnimation("Block").getSize());
+    // block->addComponent<CBoundingBox>(m_game->assets().getAnimation("Block").getSize());
                               
-    auto question = m_entityManager.addEntity("tile");
-    question->addComponent<CAnimation>(m_game->assets().getAnimation("Question"), true);
-    question->addComponent<CTransform>(Vec2(352, 480));
+    //auto question = m_entityManager.addEntity("tile");
+    //question->addComponent<CAnimation>(m_game->assets().getAnimation("Question"), true);
+    //question->addComponent<CTransform>(Vec2(352, 480));
 
     // NOTE: THIS IS INCREDIBLY IMPORTANT PLEASE READ THIS EXAMPLE
     //       Components are now returned as references rather than pointers
@@ -150,8 +155,8 @@ void Scene_Play::spawnPlayer()
     // here is a sample player entity which you can use to construct other entities
     m_player = m_entityManager.addEntity("player");
     m_player->addComponent<CAnimation>(m_game->assets().getAnimation("Stand"), true);
-    m_player->addComponent<CTransform>(Vec2(224, 352));
-    m_player->addComponent<CBoundingBox>(Vec2(48, 48));
+    m_player->addComponent<CTransform>(gridToMidPixel(m_playerConfig.X, m_playerConfig.Y, m_player));
+    m_player->addComponent<CBoundingBox>(Vec2 (m_playerConfig.CX, m_playerConfig.CY));
 
     // TODO: be sure to add the remaining components to the player
 }
