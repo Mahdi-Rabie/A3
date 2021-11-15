@@ -5,10 +5,10 @@
 //  Year / Term:     2021FALL
 //  File Name:       Scene_Play.cpp
 // 
-//  Student Name:    Mahdi Rabie
-//  Student User:    mr1826
-//  Student Email:   mr1826@mun.ca
-//  Student ID:      201025756
+//  Student Name:    Mahdi Rabie, Constance Gray
+//  Student User:    mr1826, cdg165
+//  Student Email:   mr1826@mun.ca, cdg165@mun.ca
+//  Student ID:      201025756, 201050531
 //  Group Member(s): [enter student name(s)]
 //
 ///\/\\////\///////\////\\\\\\/\\/\/\\////\///////\////\\\\\\/\\
@@ -32,14 +32,15 @@ void Scene_Play::init(const std::string & levelPath)
 {
     registerAction(sf::Keyboard::P,     "PAUSE");
     registerAction(sf::Keyboard::Escape,"QUIT");
-    registerAction(sf::Keyboard::T,     "TOGGLE_TEXTURE");      // Toggle drawing (T)extures
-    registerAction(sf::Keyboard::C,     "TOGGLE_COLLISION");    // Toggle drawing (C)ollision Boxes
-    registerAction(sf::Keyboard::G,     "TOGGLE_GRID");         // Toggle drawing (G)rid
+    registerAction(sf::Keyboard::T,     "TOGGLE_TEXTURE");          // Toggle drawing (T)extures
+    registerAction(sf::Keyboard::C,     "TOGGLE_COLLISION");       // Toggle drawing (C)ollision Boxes
+    registerAction(sf::Keyboard::G,     "TOGGLE_GRID");                 // Toggle drawing (G)rid
                        
-    registerAction(sf::Keyboard::W, "UP");                      // Go Up
-    registerAction(sf::Keyboard::A, "LEFT");                    // Go Left
-    registerAction(sf::Keyboard::D, "RIGHT");                   // Go Right
-    registerAction(sf::Keyboard::S, "DOWN");                    // Go Down
+    registerAction(sf::Keyboard::W, "UP");                                       // Go Up
+    registerAction(sf::Keyboard::A, "LEFT");                                     // Go Left
+    registerAction(sf::Keyboard::D, "RIGHT");                                 // Go Right
+    registerAction(sf::Keyboard::S, "DOWN");                                // Go Down
+    registerAction(sf::Keyboard::Space, "SHOOT");              // Spawn a bullet when space bar is pressed
 
 
     m_gridText.setCharacterSize(12);
@@ -84,7 +85,10 @@ void Scene_Play::loadLevel(const std::string & filename)
         if (firstWord == "Player") 
         {
             playerInput = true;
-            iss >> m_playerConfig.X >> m_playerConfig.Y >> m_playerConfig.CX >> m_playerConfig.CY >> m_playerConfig.SPEED >> m_playerConfig.JUMP >> m_playerConfig.MAXSPEED >> m_playerConfig.GRAVITY >> m_playerConfig.WEAPON;
+            iss >> m_playerConfig.X >> m_playerConfig.Y >> 
+                m_playerConfig.CX >> m_playerConfig.CY >> 
+                m_playerConfig.SPEED >> m_playerConfig.JUMP >> m_playerConfig.MAXSPEED >> 
+                m_playerConfig.GRAVITY >> m_playerConfig.WEAPON;
         }
 
         else if (firstWord == "Tile")
@@ -106,7 +110,7 @@ void Scene_Play::loadLevel(const std::string & filename)
 
         else
         {
-            std::cout << "Eror in file reading";
+            std::cout << "Error in file reading";
         }
     }
     // TODO: read in the level file and add the appropriate entities
@@ -161,15 +165,23 @@ void Scene_Play::spawnPlayer()
     // here is a sample player entity which you can use to construct other entities
     m_player = m_entityManager.addEntity("player");
     m_player->addComponent<CAnimation>(m_game->assets().getAnimation("Stand"), true);
-    m_player->addComponent<CTransform>(gridToMidPixel(m_playerConfig.X, m_playerConfig.Y, m_player));
-    m_player->addComponent<CBoundingBox>(Vec2 (m_playerConfig.CX, m_playerConfig.CY));
+    m_player->addComponent<CTransform>(Vec2 ( gridToMidPixel(m_playerConfig.X, m_playerConfig.Y, m_player)));
+    /*m_player->addComponent <CTransform>.velocity (Vec2 (m_playerConfig.SPEED, m_playerConfig.MAXSPEED));
+    m_player->addComponent<CTransform>.scale (Vec2(1.0, 1.0 ));
+    m_player->addComponent<CTransform>.angle(0.00f);
+    m_player->addComponent<CBoundingBox>(Vec2 (m_playerConfig.CX, m_playerConfig.CY));*/
 
     // TODO: be sure to add the remaining components to the player
 }
 
 void Scene_Play::spawnBullet(std::shared_ptr<Entity> entity)
 {
-    // TODO: this should spawn a bullet at the given entity, going in the direction the entity is facing
+    //  Spawn a bullet at the players location, going in the direction the player is facing
+	auto e = m_entityManager.addEntity ( "bullet" );
+	e->addComponent<CAnimation> ( m_game->assets ().getAnimation ( m_playerConfig.WEAPON ), true );
+	//      CTransform(const Vec2 & p, const Vec2 & sp, const Vec2 & sc, float a)	: pos ( p ), prevPos ( p ), velocity ( sp ), scale ( sc ), angle ( a ) {}
+    e->addComponent<CTransform>((gridToMidPixel (m_playerConfig.X, m_playerConfig.Y, m_player )));
+	e->addComponent<CBoundingBox> ( m_game->assets ().getAnimation ( m_playerConfig.WEAPON ).getSize () );
 }
 
 void Scene_Play::update()
@@ -187,25 +199,44 @@ void Scene_Play::update()
 
 void Scene_Play::sMovement()
 {
-    // TODO: Implement player movement / jumping based on its CInput component
-    // TODO: Implement gravity's effect on the player
-    // TODO: Implement the maxmimum player speed in both X and Y directions
-    // NOTE: Setting an entity's scale.x to -1/1 will make it face to the left/right
-    auto& pTransform = m_player->getComponent<CTransform>();
-    auto& pInput = m_player->getComponent<CInput>();
-    Vec2 playerV(0, 0);
-    if (pInput.right)   {playerV.x += m_playerConfig.SPEED;}
-    if (pInput.left)    {playerV.x -= m_playerConfig.SPEED;}
-    if (pInput.up)      {playerV.y -= m_playerConfig.SPEED;}
-    if (pInput.down)    {playerV.y += m_playerConfig.SPEED;}
+        // TODO: Implement player movement / jumping based on its CInput component
+        // TODO: Implement gravity's effect on the player
+        // TODO: Implement the maximum player speed in both X and Y directions
+        // NOTE: Setting an entity's scale.x to -1/1 will make it face to the left/right
+        auto& pTransform = m_player->getComponent<CTransform>();
+        auto& pInput = m_player->getComponent<CInput>();
+
+        Vec2 playerV(0, 0);
     
-    pTransform.velocity = playerV;
-    pTransform.pos += pTransform.velocity;
+        if (pInput.right)       {playerV.x += m_playerConfig.SPEED;}
+        if (pInput.left)          {playerV.x -= m_playerConfig.SPEED;}
+        if (pInput.up)           {playerV.y -= m_playerConfig.SPEED;}
+        if (pInput.down)     {playerV.y += m_playerConfig.SPEED;}
+        
+        //  Get reference to the bullets on the map
+        if (pInput.shoot)    
+        {/* ******Constance Left off here making bullets move **********
+            Vec2 bulletV(0,0);
+            Entity bulletsAlive = [];
+
+            auto& bulletsAlive =  EntityManager.getEntities("bullet" );
+            for (int i = 0; i < bulletsAlive.size(); i++ ) 
+            {
+                auto& currentPos = bulletsAlive[i]->getComponent<CTransform>();
+                bulletV.x += pTransform.MAXSPEED * 2;
+                bulletV.y += pTransform.MAXSPEED * 2;
+                currentPos.velocity = bulletV;
+                currentPos.pos += currentPos->velocity;
+            }   */
+        }                              //  Move bullets
+     
+        pTransform.velocity = playerV;
+        pTransform.pos += pTransform.velocity;
 }
 
 void Scene_Play::sLifespan()
 {
-    // TODO: Check lifespawn of entities that have them, and destroy them if they go over
+    // TODO: Check lifespan of entities that have them, and destroy them if they go over
 }
 
 void Scene_Play::sCollision()
@@ -230,26 +261,40 @@ void Scene_Play::sCollision()
 
 void Scene_Play::sDoAction(const Action& action)
 {
-    if (action.type() == "START")
+    if ( action.type () == "START" )
     {
-             if (action.name() == "TOGGLE_TEXTURE")     { m_drawTextures = !m_drawTextures; }
-        else if (action.name() == "TOGGLE_COLLISION")   { m_drawCollision = !m_drawCollision; }
-        else if (action.name() == "TOGGLE_GRID")        { m_drawGrid = !m_drawGrid; }
-        else if (action.name() == "PAUSE")              { setPaused(!m_paused); }
-        else if (action.name() == "QUIT")               { onEnd(); }
-        else if (action.name() == "RIGHT")              { m_player->getComponent<CInput>().right = true; }
-        else if (action.name() == "LEFT")               { m_player->getComponent<CInput>().left = true; }
-        else if (action.name() == "UP")                 { m_player->getComponent<CInput>().up = true; }
-        else if (action.name() == "DOWN")               { m_player->getComponent<CInput>().down = true; }
-        
+                    if ( action.name () == "TOGGLE_TEXTURE" )       { m_drawTextures = !m_drawTextures; }
+            else if ( action.name () == "TOGGLE_COLLISION" )    { m_drawCollision = !m_drawCollision; }
+            else if ( action.name () == "TOGGLE_GRID" )              { m_drawGrid = !m_drawGrid; }
+            else if ( action.name () == "PAUSE" )                            { setPaused ( !m_paused ); }
+            else if ( action.name () == "QUIT" )                               { onEnd (); }
+            else if ( action.name () == "RIGHT" )                             { m_player->getComponent<CInput> ().right = true; }
+            else if ( action.name () == "LEFT" )                                { m_player->getComponent<CInput> ().left = true; }
+            else if ( action.name () == "UP" )                                   { m_player->getComponent<CInput> ().up = true; }
+            else if ( action.name () == "DOWN" )                            { m_player->getComponent<CInput> ().down = true; }
+
+            else if ( action.name () == "SHOOT" ) 
+			{
+                        
+                        if ( m_player->getComponent < CInput > ().canShoot )    //  Verify the player has released the space bar before firing a second bullet
+                        {
+                                spawnBullet ( m_player );
+                                m_player->getComponent<CInput> ().shoot = true;
+                                m_player->getComponent<CInput> ().canShoot = false;                                                            //  Prevent the player from firing another bullet until the space bar is released
+                        }
+			}
     }
     else if (action.type() == "END")
     {
-        if (action.name() == "RIGHT") { m_player->getComponent<CInput>().right = false; }
-        else if (action.name() == "LEFT") { m_player->getComponent<CInput>().left = false; }
-        else if (action.name() == "UP") { m_player->getComponent<CInput>().up = false; }
-        else if (action.name() == "DOWN") { m_player->getComponent<CInput>().down = false; }
-
+                    if (action.name() == "RIGHT") { m_player->getComponent<CInput>().right = false; }
+            else if (action.name() == "LEFT") { m_player->getComponent<CInput>().left = false; }
+            else if (action.name() == "UP") { m_player->getComponent<CInput>().up = false; }
+            else if (action.name() == "DOWN") { m_player->getComponent<CInput>().down = false; }
+			else if ( action.name () == "SHOOT" )
+			{
+                m_player->getComponent<CInput> ().shoot = false;
+                m_player->getComponent<CInput> ().canShoot = true;                                                            //  Prevent the player from firing another bullet until the space bar is released
+			}
     }
 }
                               
