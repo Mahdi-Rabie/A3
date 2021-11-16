@@ -165,22 +165,21 @@ void Scene_Play::spawnPlayer()
     // here is a sample player entity which you can use to construct other entities
     m_player = m_entityManager.addEntity("player");
     m_player->addComponent<CAnimation>(m_game->assets().getAnimation("Stand"), true);
-    m_player->addComponent<CTransform>(Vec2 ( gridToMidPixel(m_playerConfig.X, m_playerConfig.Y, m_player)));
-    /*m_player->addComponent <CTransform>.velocity (Vec2 (m_playerConfig.SPEED, m_playerConfig.MAXSPEED));
-    m_player->addComponent<CTransform>.scale (Vec2(1.0, 1.0 ));
-    m_player->addComponent<CTransform>.angle(0.00f);
-    m_player->addComponent<CBoundingBox>(Vec2 (m_playerConfig.CX, m_playerConfig.CY));*/
+    m_player->addComponent<CTransform>(Vec2 ( gridToMidPixel(m_playerConfig.X, m_playerConfig.Y, m_player)), Vec2( m_playerConfig.SPEED, m_playerConfig.MAXSPEED), Vec2(1.0, 1.0), 0.0 );
+    m_player->addComponent<CBoundingBox>(Vec2 (m_playerConfig.CX, m_playerConfig.CY));
 
     // TODO: be sure to add the remaining components to the player
 }
 
 void Scene_Play::spawnBullet(std::shared_ptr<Entity> entity)
 {
+    auto& angleB = entity->getComponent<CTransform> ();
+
     //  Spawn a bullet at the players location, going in the direction the player is facing
 	auto e = m_entityManager.addEntity ( "bullet" );
 	e->addComponent<CAnimation> ( m_game->assets ().getAnimation ( m_playerConfig.WEAPON ), true );
 	//      CTransform(const Vec2 & p, const Vec2 & sp, const Vec2 & sc, float a)	: pos ( p ), prevPos ( p ), velocity ( sp ), scale ( sc ), angle ( a ) {}
-    e->addComponent<CTransform>((gridToMidPixel (m_playerConfig.X, m_playerConfig.Y, m_player )));
+    e->addComponent<CTransform> ( Vec2 ( gridToMidPixel ( m_playerConfig.X, m_playerConfig.Y, m_player ) ), Vec2 ( m_playerConfig.SPEED * 3, m_playerConfig.MAXSPEED * 3 ), Vec2 ( 1.0, 1.0 ), (angleB.angle + 90.0) );
 	e->addComponent<CBoundingBox> ( m_game->assets ().getAnimation ( m_playerConfig.WEAPON ).getSize () );
 }
 
@@ -213,22 +212,14 @@ void Scene_Play::sMovement()
         if (pInput.up)           {playerV.y -= m_playerConfig.SPEED;}
         if (pInput.down)     {playerV.y += m_playerConfig.SPEED;}
         
-        //  Get reference to the bullets on the map
-        if (pInput.shoot)    
-        {/* ******Constance Left off here making bullets move **********
-            Vec2 bulletV(0,0);
-            Entity bulletsAlive = [];
+        //  Move the bullets on the map
 
-            auto& bulletsAlive =  EntityManager.getEntities("bullet" );
-            for (int i = 0; i < bulletsAlive.size(); i++ ) 
-            {
-                auto& currentPos = bulletsAlive[i]->getComponent<CTransform>();
-                bulletV.x += pTransform.MAXSPEED * 2;
-                bulletV.y += pTransform.MAXSPEED * 2;
-                currentPos.velocity = bulletV;
-                currentPos.pos += currentPos->velocity;
-            }   */
-        }                              //  Move bullets
+		for ( auto e : m_entityManager.getEntities ( "bullet" ) )
+		{
+			auto& entityX = e->getComponent<CTransform> ().pos;
+			auto& entityV = e->getComponent<CTransform> ().velocity;
+			entityX.x = entityX.x + entityV.y;
+		}
      
         pTransform.velocity = playerV;
         pTransform.pos += pTransform.velocity;
