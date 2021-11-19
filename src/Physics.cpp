@@ -15,20 +15,75 @@
 
 #include "Physics.h"
 #include "Components.h"
-
+//		Return the overlap rectangle size of the bounding boxes of entity a and b
 Vec2 Physics::GetOverlap(std::shared_ptr<Entity> a, std::shared_ptr<Entity> b)
 {
-    // TODO: return the overlap rectangle size of the bounding boxes of entity a and b
+    auto	aCheckB = a->hasComponent<CBoundingBox>();
+	auto bCheckB = b->hasComponent<CBoundingBox> ();
+	//		Check if the entity has a bounding box
+	if (!aCheckB || !bCheckB)
+	{
+		//		The entity has no bounding box
+		return Vec2 ( 0, 0 );	
+	}
+	//	The entity has a bounding box so continue
+    //  Declare local vars
+    auto ox = 0.0;
+    auto oy = 0.0;
+//     Vec2 overlap ;
 
-    return Vec2(0, 0);
+    //  Get a reference to the two entities position & bounding boxes
+    auto& aPos = a->getComponent<CTransform>().pos;
+    auto& bPos = b->getComponent<CTransform> ().pos;
+	auto& aBox = a->getComponent<CBoundingBox>().halfSize;
+	auto& bBox = b->getComponent<CBoundingBox>().halfSize;
+
+
+    //  Calculate overlap & return the size of the overlapped rectangle
+    auto deltaX = abs ( aPos.x - bPos.x );
+    auto deltaY = abs ( aPos.y - bPos.y );
+    auto delta = (deltaX, deltaY);
+
+    ox = aBox.x + bBox.x - deltaX;
+    oy = aBox.y + bBox.y - deltaY;
+    auto overlap = Vec2(ox, oy);
+
+    return overlap;
 }
 
+  //	Return the previous overlap rectangle size of the bounding boxes of entity a and b
 Vec2 Physics::GetPreviousOverlap(std::shared_ptr<Entity> a, std::shared_ptr<Entity> b)
-{
-    // TODO: return the previous overlap rectangle size of the bounding boxes of entity a and b
-    //       previous overlap uses the entity's previous position
+{ 
+	auto aCheckB = a->hasComponent<CBoundingBox> ();
+	auto bCheckB = b->hasComponent<CBoundingBox> ();
+	//		Check if the entity has a bounding box
+	if ( !aCheckB || !bCheckB )
+	{
+		//		The entity has no bounding box
+		return Vec2 ( 0, 0 );
+	}
+	
+	//	The entity has a bounding box so continue
+	// Declare local vars
+	auto ox = 0.0;
+	auto oy = 0.0;
+	
+	//  Get a reference to the two entities position & bounding boxes
+	auto& aPos = a->getComponent<CTransform> ().prevPos;
+	auto& bPos = b->getComponent<CTransform> ().prevPos;
+	auto& aBox = a->getComponent<CBoundingBox> ().halfSize;
+	auto& bBox = b->getComponent<CBoundingBox> ().halfSize;
 
-    return Vec2(0, 0);
+	//  Calculate overlap & return the size of the overlapped rectangle
+	auto deltaX = abs ( aPos.x - bPos.x );
+	auto deltaY = abs ( aPos.y - bPos.y );
+	auto delta = ( deltaX, deltaY );
+
+	ox = aBox.x + bBox.x - deltaX;
+	oy = aBox.y + bBox.y - deltaY;
+	auto overlap = Vec2 ( ox, oy );
+
+	return overlap;
 }
 
 

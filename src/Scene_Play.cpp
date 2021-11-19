@@ -179,7 +179,7 @@ void Scene_Play::spawnBullet(std::shared_ptr<Entity> entity)
 	auto e = m_entityManager.addEntity ( "bullet" );
 	e->addComponent<CAnimation> ( m_game->assets ().getAnimation ( m_playerConfig.WEAPON ), true );
 	//      CTransform(const Vec2 & p, const Vec2 & sp, const Vec2 & sc, float a)	: pos ( p ), prevPos ( p ), velocity ( sp ), scale ( sc ), angle ( a ) {}
-    e->addComponent<CTransform> ( Vec2 ( gridToMidPixel ( m_playerConfig.X, m_playerConfig.Y, m_player ) ), Vec2 ( m_playerConfig.SPEED * 3, m_playerConfig.MAXSPEED * 3 ), Vec2 ( 1.0, 1.0 ), (angleB.angle + 90.0) );
+    e->addComponent<CTransform> ( Vec2 ( angleB.pos ), Vec2 ( m_playerConfig.SPEED * 3, m_playerConfig.MAXSPEED * 3 ), Vec2 ( 1.0, 1.0 ), (angleB.angle + 90.0) );
 	e->addComponent<CBoundingBox> ( m_game->assets ().getAnimation ( m_playerConfig.WEAPON ).getSize () );
 }
 
@@ -204,6 +204,9 @@ void Scene_Play::sMovement()
         // NOTE: Setting an entity's scale.x to -1/1 will make it face to the left/right
         auto& pTransform = m_player->getComponent<CTransform>();
         auto& pInput = m_player->getComponent<CInput>();
+
+        //  Store previous position before updating
+        pTransform.prevPos = pTransform.pos;
 
         Vec2 playerV(0, 0);
     
@@ -237,10 +240,27 @@ void Scene_Play::sCollision()
     //           and gravity will have a positive y-component
     //           Also, something BELOW something else will have a y value GREATER than it
     //           Also, something ABOVE something else will have a y value LESS than it
+    for ( auto tile : m_entityManager.getEntities ( "Tile" ) )
+    {
+        //  Implement bullet / tile collisions
+        for (auto bullet : m_entityManager.getEntities ( "bullet" ) ) 
+        {
+            //  Check for a collision with the Physics.getOverlap ()  
+            //  Note: A positive number means a collision has occurred
+            auto collisionCheck = (Physics::GetOverlap( bullet, tile ));
+            if ( ( collisionCheck.x ) > 0 && ( collisionCheck.y > 0 ) )
+            {
+                //  A collision has occurred destroy the bullet
+                bullet->destroy();
+                //  Check if the tile is a brick which can be destroyed by a bullet
+                if ((tile->getComponent<CAnimation> ().animation.getName()) == "brick" )
+                {
+                    tile->destroy();
+                }
+            }
+        }
+    }
 
-    // TODO: Implement Physics::GetOverlap() function, use it inside this function
-                              
-    // TODO: Implement bullet / tile collisions
     //       Destroy the tile if it has a Brick animation
     // TODO: Implement player / tile collisions and resolutions
     //       Update the CState component of the player to store whether
