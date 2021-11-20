@@ -162,7 +162,6 @@ void Scene_Play::loadLevel(const std::string & filename)
 
 void Scene_Play::spawnPlayer()
 {
-    // here is a sample player entity which you can use to construct other entities
     m_player = m_entityManager.addEntity("player");
     m_player->addComponent<CAnimation>(m_game->assets().getAnimation("Stand"), true);
     m_player->addComponent<CTransform>(Vec2 ( gridToMidPixel(m_playerConfig.X, m_playerConfig.Y, m_player)), Vec2( m_playerConfig.SPEED, m_playerConfig.MAXSPEED), Vec2(1.0, 1.0), 0.0 );
@@ -240,7 +239,7 @@ void Scene_Play::sCollision()
     //           and gravity will have a positive y-component
     //           Also, something BELOW something else will have a y value GREATER than it
     //           Also, something ABOVE something else will have a y value LESS than it
-    for ( auto tile : m_entityManager.getEntities ( "Tile" ) )
+    for ( auto tile : m_entityManager.getEntities ( "tile" ) )
     {
         //  Implement bullet / tile collisions
         for (auto bullet : m_entityManager.getEntities ( "bullet" ) ) 
@@ -253,7 +252,7 @@ void Scene_Play::sCollision()
                 //  A collision has occurred destroy the bullet
                 bullet->destroy();
                 //  Check if the tile is a brick which can be destroyed by a bullet
-                if ((tile->getComponent<CAnimation> ().animation.getName()) == "brick" )
+                if ((tile->getComponent<CAnimation> ().animation.getName()) == "Brick" )
                 {
                     tile->destroy();
                 }
