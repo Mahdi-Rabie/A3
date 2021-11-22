@@ -79,8 +79,8 @@ Vec2 Physics::GetPreviousOverlap(std::shared_ptr<Entity> a, std::shared_ptr<Enti
 	auto deltaY = abs ( aPos.y - bPos.y );
 	auto delta = ( deltaX, deltaY );
 
-	ox = aBox.x + bBox.x - deltaX;
-	oy = aBox.y + bBox.y - deltaY;
+	ox = abs(aBox.x + bBox.x - deltaX);
+	oy = abs(aBox.y + bBox.y - deltaY);
 	auto overlap = Vec2 ( ox, oy );
 
 	return overlap;

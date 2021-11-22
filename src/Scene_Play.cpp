@@ -235,26 +235,80 @@ void Scene_Play::sCollision()
     //           Also, something ABOVE something else will have a y value LESS than it
     for ( auto tile : m_entityManager.getEntities ( "tile" ) )
     {
+        auto& tName = tile->getComponent<CAnimation> ().animation.getName ();
         //  Implement bullet / tile collisions
-        for (auto bullet : m_entityManager.getEntities ( "bullet" ) ) 
+        for ( auto bullet : m_entityManager.getEntities ( "bullet" ) )
         {
             //  Check for a collision with the Physics.getOverlap ()  
             //  Note: A positive number means a collision has occurred
-            auto collisionCheck = (Physics::GetOverlap( bullet, tile ));
+            auto collisionCheck = ( Physics::GetOverlap ( bullet, tile ) );
             if ( ( collisionCheck.x ) > 0 && ( collisionCheck.y > 0 ) )
             {
                 //  A collision has occurred destroy the bullet
-                bullet->destroy();
+                bullet->destroy ();
                 //  Check if the tile is a brick which can be destroyed by a bullet
-                if ((tile->getComponent<CAnimation> ().animation.getName()) == "Brick" )
+                if ( tName == "Brick" )
                 {
-                    tile->destroy();
+                    tile->destroy ();
                 }
             }
         }
-    }
 
-    //       Destroy the tile if it has a Brick animation
+        //  Perform player / tile collision check by calling getOverlap()
+		//  Note: A positive number means a collision has occurred
+		auto collisionCheck = ( Physics::GetOverlap ( m_player, tile ) );
+       
+        if ( ( collisionCheck.x ) > 0 && ( collisionCheck.y > 0 ) )
+        {
+            //  An overlap has occured getPreviousOverlap()
+            auto prevCollision = ( Physics::GetPreviousOverlap ( m_player, tile ) );
+            //  Store the players transform for easy ref
+            auto& pTransform = m_player->getComponent<CTransform> ();
+
+            //  Check prevpos.y for a side collision
+            if ( prevCollision.y > 0 )
+            {
+                //  Check the direction of the collision
+				if ( pTransform.prevPos.x < pTransform.pos.x )
+				{
+					//   Collision came from the left  *******Note there are no special circumstances if it came from left or right
+					pTransform.pos.x = pTransform.prevPos.x;
+				}
+
+                //  Collision came from the top or bottom
+                if ( prevCollision.x > 0 ) {
+                    //  Check if collision came from the top
+                    if ( pTransform.prevPos.y < pTransform.pos.y )
+                    {
+                        //   Push player back so they are standing on the item
+                        pTransform.pos.y = pTransform.prevPos.y;
+                    }
+                    else {
+                        //  Collision came from the bottom push the player down
+                        pTransform.pos.y = pTransform.prevPos.y;
+
+                        //  Check if object is a brick
+                        if ( tName == "Brick" )
+                        {
+                            tile->destroy ();
+                        }
+                        //  If it is a question activate the coin animation
+                        if ( tName == "Question" )
+                        {
+                            //  Activate the question animation in sAnimation()
+                            //   TODO: Animate coins *********************
+                        }
+                    }
+                }
+            }
+
+                  //  Set players velocity to 0 so that gravity pulls them back down from the jump
+
+        //  if there was no prev overlap (i.e. collision came diagonally) push up (Optional to pick up or side push
+
+        }
+     }
+
     // TODO: Implement player / tile collisions and resolutions
     //       Update the CState component of the player to store whether
     //       it is currently on the ground or in the air. This will be
@@ -285,27 +339,30 @@ void Scene_Play::sDoAction(const Action& action)
         else if ( action.name () == "UP" )                      { m_player->getComponent<CInput> ().up = true; }
         else if ( action.name () == "DOWN" )                    { m_player->getComponent<CInput> ().down = true; }
 
-        else if ( action.name () == "SHOOT" ) 
-		{
-            if ( m_player->getComponent < CInput > ().canShoot )    //  Verify the player has released the space bar before firing a second bullet
-            {
-                spawnBullet ( m_player );
-                m_player->getComponent<CInput> ().shoot = true;
-                m_player->getComponent<CInput> ().canShoot = false;                                                            //  Prevent the player from firing another bullet until the space bar is released
-            }
-		}
+            else if ( action.name () == "SHOOT" ) 
+			{
+                        // Spawn a bullet at the players location
+                        if ( m_player->getComponent < CInput > ().canShoot )    
+                        {
+                                spawnBullet ( m_player );
+                                m_player->getComponent<CInput> ().shoot = true;
+
+                                //  Prevent the player from firing another bullet until the space bar is released
+                                m_player->getComponent<CInput> ().canShoot = false;                                                           
+                        }
+			}
     }
     else if (action.type() == "END")
     {
-        if (action.name() == "RIGHT") { m_player->getComponent<CInput>().right = false; }
-        else if (action.name() == "LEFT") { m_player->getComponent<CInput>().left = false; }
-        else if (action.name() == "UP") { m_player->getComponent<CInput>().up = false; }
-        else if (action.name() == "DOWN") { m_player->getComponent<CInput>().down = false; }
-		else if ( action.name () == "SHOOT" )
-		{
-            m_player->getComponent<CInput> ().shoot = false;
-            m_player->getComponent<CInput> ().canShoot = true;                                                            //  Prevent the player from firing another bullet until the space bar is released
-		}
+                    if (action.name() == "RIGHT") { m_player->getComponent<CInput>().right = false; }
+            else if (action.name() == "LEFT") { m_player->getComponent<CInput>().left = false; }
+            else if (action.name() == "UP") { m_player->getComponent<CInput>().up = false; }
+            else if (action.name() == "DOWN") { m_player->getComponent<CInput>().down = false; }
+			else if ( action.name () == "SHOOT" )
+			{
+                m_player->getComponent<CInput> ().shoot = false;
+                m_player->getComponent<CInput> ().canShoot = true;                                                            //  Prevent the player from firing another bullet until the space bar is released
+			}
     }
 }
                               
