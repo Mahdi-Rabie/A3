@@ -95,6 +95,7 @@ void Scene_Play::loadLevel(const std::string & filename)
         {
             iss >> type >> pos_x >> pos_y;
             auto e = m_entityManager.addEntity("tile");
+            
             e->addComponent<CAnimation>(m_game->assets().getAnimation(type), true);
             e->addComponent<CTransform>(gridToMidPixel(pos_x, pos_y, e));
             e->addComponent<CBoundingBox>(m_game->assets().getAnimation(type).getSize());
@@ -167,10 +168,10 @@ void Scene_Play::spawnBullet(std::shared_ptr<Entity> entity)
 {
     auto& angleB = entity->getComponent<CTransform> ();
 
-    //  Spawn a bullet at the players location, going in the direction the player is facing
+    // Spawn a bullet at the players location, going in the direction the player is facing
 	auto e = m_entityManager.addEntity ( "bullet" );
 	e->addComponent<CAnimation> ( m_game->assets ().getAnimation ( m_playerConfig.WEAPON ), true );
-	//      CTransform(const Vec2 & p, const Vec2 & sp, const Vec2 & sc, float a)	: pos ( p ), prevPos ( p ), velocity ( sp ), scale ( sc ), angle ( a ) {}
+	// CTransform(const Vec2 & p, const Vec2 & sp, const Vec2 & sc, float a)	: pos ( p ), prevPos ( p ), velocity ( sp ), scale ( sc ), angle ( a ) {}
     e->addComponent<CTransform> ( Vec2 ( angleB.pos ), Vec2 ( m_playerConfig.SPEED * 3, m_playerConfig.MAXSPEED * 3 ), Vec2 ( 1.0, 1.0 ), (angleB.angle + 90.0) );
 	e->addComponent<CBoundingBox> ( m_game->assets ().getAnimation ( m_playerConfig.WEAPON ).getSize () );
 }
@@ -271,8 +272,16 @@ void Scene_Play::sDoAction(const Action& action)
         else if ( action.name () == "TOGGLE_GRID" )             { m_drawGrid = !m_drawGrid; }
         else if ( action.name () == "PAUSE" )                   { setPaused ( !m_paused ); }
         else if ( action.name () == "QUIT" )                    { onEnd (); }
-        else if ( action.name () == "RIGHT" )                   { m_player->getComponent<CInput> ().right = true; }
-        else if ( action.name () == "LEFT" )                    { m_player->getComponent<CInput> ().left = true; }
+        else if ( action.name () == "RIGHT" )                   
+        { 
+            m_player->getComponent<CInput> ().right = true; 
+            m_player->getComponent<CTransform>().scale = Vec2(1.0f, 1.0f);
+        }
+        else if (action.name() == "LEFT") 
+        { 
+            m_player->getComponent<CInput>().left = true;
+            m_player->getComponent<CTransform>().scale = Vec2(-1.0f, 1.0f);
+        }
         else if ( action.name () == "UP" )                      { m_player->getComponent<CInput> ().up = true; }
         else if ( action.name () == "DOWN" )                    { m_player->getComponent<CInput> ().down = true; }
 
@@ -302,11 +311,22 @@ void Scene_Play::sDoAction(const Action& action)
                               
 void Scene_Play::sAnimation()
 {
-    // TODO: Complete the Animation class code first
+    // set the animation of the player based on its CState component
+    auto state = m_player->getComponent<CState>().state;
+    m_player->addComponent<CAnimation>(m_game->assets().getAnimation(state), true);
 
-    // TODO: set the animation of the player based on its CState component
-    // TODO: for each entity with an animation, call entity->getComponent<CAnimation>().animation.update()
-    //       if the animation is not repeated, and it has ended, destroy the entity
+    // for each entity with an animation, call entity->getComponent<CAnimation>().animation.update()
+    
+    for (auto e : m_entityManager.getEntities()) 
+    {
+        e->getComponent<CAnimation>().animation.update();
+
+        // if the animation is not repeated, and it has ended, destroy the entity
+        if (!e->getComponent<CAnimation>().repeat && e->getComponent<CAnimation>().animation.hasEnded())
+        {
+            e->destroy();
+        }
+    }
 }
 
 void Scene_Play::onEnd()

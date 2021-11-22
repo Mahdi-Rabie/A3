@@ -43,12 +43,17 @@ Animation::Animation(const std::string & name, const sf::Texture & t, size_t fra
 void Animation::update()
 {
     // add the speed variable to the current frame
-    m_currentFrame++;
-
     // TODO: 1) calculate the correct frame of animation to play based on currentFrame and speed
     //       2) set the texture rectangle properly (see constructor for sample)
-}
+    size_t frame = 0;
+    m_currentFrame++;
+    if (m_speed > 0)
+    {
+        frame = (m_currentFrame / m_speed) % m_frameCount;
+        m_sprite.setTextureRect(sf::IntRect(frame * m_size.x, 0, m_size.x, m_size.y));
 
+    }
+}
 const Vec2 & Animation::getSize() const
 {
     return m_size;
