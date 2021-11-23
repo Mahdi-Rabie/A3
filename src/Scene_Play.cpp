@@ -248,7 +248,11 @@ void Scene_Play::sCollision ()
     //           Also, something ABOVE something else will have a y value LESS than it
     for ( auto tile : m_entityManager.getEntities ( "tile" ) )
     {
-        auto& tName = tile->getComponent<CAnimation> ().animation.getName ();
+        //  Quick references to the tile
+        auto& tName = tile->getComponent<CAnimation> ().animation.getName();
+        auto& tSize = tile->getComponent<CAnimation> ().animation.getSize();
+        auto& tTransform = tile->getComponent<CTransform> ();
+
         //  Implement bullet / tile collisions
         for ( auto bullet : m_entityManager.getEntities ( "bullet" ) )
         {
@@ -268,15 +272,17 @@ void Scene_Play::sCollision ()
         }
 
         //  Perform player / tile collision check by calling getOverlap()
-        //  Note: A positive number means a collision has occurred
         auto collisionCheck = ( Physics::GetOverlap ( m_player, tile ) );
 
+        //Get the players size & transform components
+        auto& pSize = m_player->getComponent<CAnimation> ().animation.getSize ();
+        auto& pTransform = m_player->getComponent<CTransform> ();
+
+        //  Note: A positive number means a collision has occurred
 		if ( ( collisionCheck.x ) > 0 && ( collisionCheck.y > 0 ) )
 		{
 			//  An overlap has occured getPreviousOverlap()
-			auto prevCollision = ( Physics::GetPreviousOverlap ( m_player, tile ) );
-			//  Store the players transform for easy ref
-			auto& pTransform = m_player->getComponent<CTransform> ();
+			auto prevCollision = ( Physics::GetPreviousOverlap ( m_player, tile ) );			
 
             //  Check if collision came from the top or bottom
             if ( prevCollision.x > 0 )
@@ -285,20 +291,16 @@ void Scene_Play::sCollision ()
                 if ( pTransform.prevPos.y < pTransform.pos.y )
                 {
                     //   Top Collision: Push player back so they are standing on the item
-                    pTransform.pos.y = pTransform.prevPos.y;
+                    pTransform.pos.y = pTransform.prevPos.y - 5;
                 }
                 else
                 {
                     //  Bottom Collision:  move player down
                     pTransform.pos.y = pTransform.prevPos.y;
-                    //  Set players velocity to 0 so that gravity pulls them back down from the jump
-                    pTransform.velocity.y = 0;
-                    //  Get the size of the box
-					auto& qSize = tile->getComponent<CAnimation> ().animation.getSize ();
+
 					//  check that it isn't a side collision
-					auto tileBottom = ( ( tile->getComponent<CTransform> ().pos.y ) + ( qSize.y * 0.5 ) );
-                    auto see = m_player->getComponent<CAnimation> ().animation.getSize ().y;
-					auto playerH = ( pTransform.pos.y - (( m_player->getComponent<CAnimation> ().animation.getSize ().y ) * 0.5) + 10 );
+					auto tileBottom = ( ( tTransform.pos.y ) + ( tSize.y * 0.5 ) );
+					auto playerH = ( pTransform.pos.y - (pSize.y * 0.5) + 10 );
                     if ( playerH > tileBottom )
                     {
                         //  Check if object is a brick
@@ -313,11 +315,9 @@ void Scene_Play::sCollision ()
                             //  Activate the coin animation
 						    auto coin = m_entityManager.addEntity ( "dec" );
 						    coin->addComponent<CAnimation> ( m_game->assets ().getAnimation ( "Coin" ), false );
-                            //  Get the transform component of the question box
-                            auto& qPos = tile->getComponent<CTransform>();
                             //  Position the coin above the question box
-                            auto addH = qPos.pos.y - qSize.y;
-						    coin->addComponent<CTransform> ( Vec2(qPos.pos.x, addH) );
+                            auto addH = tTransform.pos.y - tSize.y;
+						    coin->addComponent<CTransform> ( Vec2(tTransform.pos.x, addH) );
                         }
                     }                    
                 }
@@ -326,25 +326,30 @@ void Scene_Play::sCollision ()
             //  Check prevpos.y for a side collision
             if (prevCollision.y  > 0  )
             {
-                //   Collision came from the left  *******Note there are no special circumstances if it came from left or right
+                //   Note there are no special circumstances if it came from left or right
                 pTransform.pos.x = pTransform.prevPos.x;
-                //  Check the direction of the collision
-//                 if ( pTransform.prevPos.x < pTransform.pos.x )
-//                 {
-//                     
-//                 }
             }
 
-
-            //  if there was no prev overlap (i.e. collision came diagonally) push up (Optional to pick up or side push
+            //  TODO: If there was no prev overlap (i.e. collision came diagonally) push up (Optional to pick up or side push
 
         }
+		
+        //  Check if the players has fallen down a hole
+        if ((pTransform.pos.y - (pSize.y / 2)) > height() )
+        {
+            //  Player has died, respawn
+            m_player->destroy();
+            spawnPlayer();
+        }
+
     }
     // TODO: Implement player / tile collisions and resolutions
     //       Update the CState component of the player to store whether
     //       it is currently on the ground or in the air. This will be
     //       used by the Animation system
-    // TODO: Check to see if the player has fallen down a hole (y > height())
+	 //  Set players velocity to 0 so that gravity pulls them back down from the jump
+	//pTransform.velocity.y = 0;
+
     // TODO: Don't let the player walk off the left side of the map
 }
 
