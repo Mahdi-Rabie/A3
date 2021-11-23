@@ -246,6 +246,11 @@ void Scene_Play::sCollision ()
     //           and gravity will have a positive y-component
     //           Also, something BELOW something else will have a y value GREATER than it
     //           Also, something ABOVE something else will have a y value LESS than it
+
+    //Get the players size & transform components
+	auto& pSize = m_player->getComponent<CAnimation> ().animation.getSize ();
+	auto& pTransform = m_player->getComponent<CTransform> ();
+
     for ( auto tile : m_entityManager.getEntities ( "tile" ) )
     {
         //  Quick references to the tile
@@ -273,10 +278,6 @@ void Scene_Play::sCollision ()
 
         //  Perform player / tile collision check by calling getOverlap()
         auto collisionCheck = ( Physics::GetOverlap ( m_player, tile ) );
-
-        //Get the players size & transform components
-        auto& pSize = m_player->getComponent<CAnimation> ().animation.getSize ();
-        auto& pTransform = m_player->getComponent<CTransform> ();
 
         //  Note: A positive number means a collision has occurred
 		if ( ( collisionCheck.x ) > 0 && ( collisionCheck.y > 0 ) )
@@ -333,16 +334,15 @@ void Scene_Play::sCollision ()
             //  TODO: If there was no prev overlap (i.e. collision came diagonally) push up (Optional to pick up or side push
 
         }
-		
-        //  Check if the players has fallen down a hole
-        if ((pTransform.pos.y - (pSize.y / 2)) > height() )
-        {
-            //  Player has died, respawn
-            m_player->destroy();
-            spawnPlayer();
-        }
-
     }
+
+	//  Check if the players has fallen down a hole
+	if ( ( pTransform.pos.y - ( pSize.y / 2 ) ) > height () )
+	{
+		//  Player has died, respawn
+		m_player->destroy ();
+		spawnPlayer ();
+	}
     // TODO: Implement player / tile collisions and resolutions
     //       Update the CState component of the player to store whether
     //       it is currently on the ground or in the air. This will be
@@ -350,7 +350,11 @@ void Scene_Play::sCollision ()
 	 //  Set players velocity to 0 so that gravity pulls them back down from the jump
 	//pTransform.velocity.y = 0;
 
-    // TODO: Don't let the player walk off the left side of the map
+    //  Prevent the player from walking off the left side of the map
+    if ((pTransform.pos.x - (pSize.x / 2)) < 0)
+    {
+        pTransform.pos.x = pTransform.prevPos.x;
+    }
 }
 
 void Scene_Play::sDoAction(const Action& action)
