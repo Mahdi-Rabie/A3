@@ -166,14 +166,18 @@ void Scene_Play::spawnPlayer()
 
 void Scene_Play::spawnBullet(std::shared_ptr<Entity> entity)
 {
-    auto& angleB = entity->getComponent<CTransform> ();
 
-    // Spawn a bullet at the players location, going in the direction the player is facing
-	auto e = m_entityManager.addEntity ( "bullet" );
-	e->addComponent<CAnimation> ( m_game->assets ().getAnimation ( m_playerConfig.WEAPON ), true );
+    //  Reference the entities Transform attributes
+    auto& player = entity->getComponent<CTransform> ();
+    
+    // Spawn a bullet at the entities location, going in the direction the entity is facing
+	auto bullet = m_entityManager.addEntity ( "bullet" );
+
+    bullet->addComponent<CAnimation> ( m_game->assets ().getAnimation ( m_playerConfig.WEAPON ), true );
+
 	// CTransform(const Vec2 & p, const Vec2 & sp, const Vec2 & sc, float a)	: pos ( p ), prevPos ( p ), velocity ( sp ), scale ( sc ), angle ( a ) {}
-    e->addComponent<CTransform> ( Vec2 ( angleB.pos ), Vec2 ( m_playerConfig.SPEED * 3, m_playerConfig.MAXSPEED * 3 ), Vec2 ( 1.0, 1.0 ), (angleB.angle + 90.0) );
-	e->addComponent<CBoundingBox> ( m_game->assets ().getAnimation ( m_playerConfig.WEAPON ).getSize () );
+    bullet->addComponent<CTransform> ( Vec2 ( player.pos ), Vec2 (( m_playerConfig.SPEED * 2), (m_playerConfig.MAXSPEED * 2) ), Vec2 ( player.scale.x, 1.0 ), ( player.angle + 90.0) );
+    bullet->addComponent<CBoundingBox> ( m_game->assets ().getAnimation ( m_playerConfig.WEAPON ).getSize () );
 }
 
 void Scene_Play::update()
@@ -212,9 +216,18 @@ void Scene_Play::sMovement()
 
 	for ( auto e : m_entityManager.getEntities ( "bullet" ) )
 	{
-		auto& entityX = e->getComponent<CTransform> ().pos;
-		auto& entityV = e->getComponent<CTransform> ().velocity;
-		entityX.x = entityX.x + entityV.y;
+		auto& entityX = e->getComponent<CTransform> ();
+
+		//  Check the direction of travel
+        if ( entityX.scale.x > 0 ) {
+            //  Bullet is traveling right
+            entityX.pos.x += entityX.velocity.x;
+        }
+        else {
+			//  Bullet is traveling left
+			entityX.pos.x -= entityX.velocity.x;
+        }
+           
 	}
      
     pTransform.velocity = playerV;
@@ -226,7 +239,7 @@ void Scene_Play::sLifespan()
     // TODO: Check lifespan of entities that have them, and destroy them if they go over
 }
 
-void Scene_Play::sCollision()
+void Scene_Play::sCollision ()
 {
     // REMEMBER: SFML's (0,0) position is on the TOP-LEFT corner
     //           This means jumping will have a negative y-component
@@ -255,60 +268,78 @@ void Scene_Play::sCollision()
         }
 
         //  Perform player / tile collision check by calling getOverlap()
-		//  Note: A positive number means a collision has occurred
-		auto collisionCheck = ( Physics::GetOverlap ( m_player, tile ) );
-       
-        if ( ( collisionCheck.x ) > 0 && ( collisionCheck.y > 0 ) )
-        {
-            //  An overlap has occured getPreviousOverlap()
-            auto prevCollision = ( Physics::GetPreviousOverlap ( m_player, tile ) );
-            //  Store the players transform for easy ref
-            auto& pTransform = m_player->getComponent<CTransform> ();
+        //  Note: A positive number means a collision has occurred
+        auto collisionCheck = ( Physics::GetOverlap ( m_player, tile ) );
 
-            //  Check prevpos.y for a side collision
-            if ( prevCollision.y > 0 )
+		if ( ( collisionCheck.x ) > 0 && ( collisionCheck.y > 0 ) )
+		{
+			//  An overlap has occured getPreviousOverlap()
+			auto prevCollision = ( Physics::GetPreviousOverlap ( m_player, tile ) );
+			//  Store the players transform for easy ref
+			auto& pTransform = m_player->getComponent<CTransform> ();
+
+            //  Check if collision came from the top or bottom
+            if ( prevCollision.x > 0 )
             {
-                //  Check the direction of the collision
-				if ( pTransform.prevPos.x < pTransform.pos.x )
-				{
-					//   Collision came from the left  *******Note there are no special circumstances if it came from left or right
-					pTransform.pos.x = pTransform.prevPos.x;
-				}
-
-                //  Collision came from the top or bottom
-                if ( prevCollision.x > 0 ) {
-                    //  Check if collision came from the top
-                    if ( pTransform.prevPos.y < pTransform.pos.y )
+                //  Check if collision came from the top
+                if ( pTransform.prevPos.y < pTransform.pos.y )
+                {
+                    //   Top Collision: Push player back so they are standing on the item
+                    pTransform.pos.y = pTransform.prevPos.y;
+                }
+                else
+                {
+                    //  Bottom Collision:  move player down
+                    pTransform.pos.y = pTransform.prevPos.y;
+                    //  Set players velocity to 0 so that gravity pulls them back down from the jump
+                    pTransform.velocity.y = 0;
+                    //  Get the size of the box
+					auto& qSize = tile->getComponent<CAnimation> ().animation.getSize ();
+					//  check that it isn't a side collision
+					auto tileBottom = ( ( tile->getComponent<CTransform> ().pos.y ) + ( qSize.y * 0.5 ) );
+                    auto see = m_player->getComponent<CAnimation> ().animation.getSize ().y;
+					auto playerH = ( pTransform.pos.y - (( m_player->getComponent<CAnimation> ().animation.getSize ().y ) * 0.5) + 10 );
+                    if ( playerH > tileBottom )
                     {
-                        //   Push player back so they are standing on the item
-                        pTransform.pos.y = pTransform.prevPos.y;
-                    }
-                    else {
-                        //  Collision came from the bottom push the player down
-                        pTransform.pos.y = pTransform.prevPos.y;
-
                         //  Check if object is a brick
                         if ( tName == "Brick" )
                         {
                             tile->destroy ();
+                            break;
                         }
                         //  If it is a question activate the coin animation
                         if ( tName == "Question" )
                         {
-                            //  Activate the question animation in sAnimation()
-                            //   TODO: Animate coins *********************
+                            //  Activate the coin animation
+						    auto coin = m_entityManager.addEntity ( "dec" );
+						    coin->addComponent<CAnimation> ( m_game->assets ().getAnimation ( "Coin" ), false );
+                            //  Get the transform component of the question box
+                            auto& qPos = tile->getComponent<CTransform>();
+                            //  Position the coin above the question box
+                            auto addH = qPos.pos.y - qSize.y;
+						    coin->addComponent<CTransform> ( Vec2(qPos.pos.x, addH) );
                         }
-                    }
+                    }                    
                 }
             }
+            
+            //  Check prevpos.y for a side collision
+            if (prevCollision.y  > 0  )
+            {
+                //   Collision came from the left  *******Note there are no special circumstances if it came from left or right
+                pTransform.pos.x = pTransform.prevPos.x;
+                //  Check the direction of the collision
+//                 if ( pTransform.prevPos.x < pTransform.pos.x )
+//                 {
+//                     
+//                 }
+            }
 
-                  //  Set players velocity to 0 so that gravity pulls them back down from the jump
 
-        //  if there was no prev overlap (i.e. collision came diagonally) push up (Optional to pick up or side push
+            //  if there was no prev overlap (i.e. collision came diagonally) push up (Optional to pick up or side push
 
         }
-     }
-
+    }
     // TODO: Implement player / tile collisions and resolutions
     //       Update the CState component of the player to store whether
     //       it is currently on the ground or in the air. This will be
@@ -354,14 +385,14 @@ void Scene_Play::sDoAction(const Action& action)
     }
     else if (action.type() == "END")
     {
-                    if (action.name() == "RIGHT") { m_player->getComponent<CInput>().right = false; }
+            if (action.name() == "RIGHT") { m_player->getComponent<CInput>().right = false; }
             else if (action.name() == "LEFT") { m_player->getComponent<CInput>().left = false; }
             else if (action.name() == "UP") { m_player->getComponent<CInput>().up = false; }
             else if (action.name() == "DOWN") { m_player->getComponent<CInput>().down = false; }
 			else if ( action.name () == "SHOOT" )
 			{
                 m_player->getComponent<CInput> ().shoot = false;
-                m_player->getComponent<CInput> ().canShoot = true;                                                            //  Prevent the player from firing another bullet until the space bar is released
+                m_player->getComponent<CInput> ().canShoot = true;                                                            
 			}
     }
 }
