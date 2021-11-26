@@ -33,14 +33,12 @@ void Scene_Play::init(const std::string & levelPath)
     registerAction(sf::Keyboard::P,     "PAUSE");
     registerAction(sf::Keyboard::Escape,"QUIT");
     registerAction(sf::Keyboard::T,     "TOGGLE_TEXTURE");          // Toggle drawing (T)extures
-    registerAction(sf::Keyboard::C,     "TOGGLE_COLLISION");       // Toggle drawing (C)ollision Boxes
-    registerAction(sf::Keyboard::G,     "TOGGLE_GRID");                 // Toggle drawing (G)rid
-                       
-    registerAction(sf::Keyboard::W, "UP");                                       // Go Up
-    registerAction(sf::Keyboard::A, "LEFT");                                     // Go Left
-    registerAction(sf::Keyboard::D, "RIGHT");                                 // Go Right
-    registerAction(sf::Keyboard::S, "DOWN");                                // Go Down
-    registerAction(sf::Keyboard::Space, "SHOOT");              // Spawn a bullet when space bar is pressed
+    registerAction(sf::Keyboard::C,     "TOGGLE_COLLISION");        // Toggle drawing (C)ollision Boxes
+    registerAction(sf::Keyboard::G,     "TOGGLE_GRID");             // Toggle drawing (G)rid
+    registerAction(sf::Keyboard::W, "UP");                          // Go Up
+    registerAction(sf::Keyboard::A, "LEFT");                        // Go Left
+    registerAction(sf::Keyboard::D, "RIGHT");                       // Go Right
+    registerAction(sf::Keyboard::Space, "SHOOT");                   // Spawn a bullet when space bar is pressed
 
 
     m_gridText.setCharacterSize(12);
@@ -209,22 +207,35 @@ void Scene_Play::sMovement()
     //  Store previous position before updating
     pTransform.prevPos = pTransform.pos;
 
-    if (pInput.right)           {playerV2.x += m_playerConfig.SPEED;}
-    if (pInput.left)            {playerV2.x -= m_playerConfig.SPEED;}
-
-    if (pInput.up)
-    { 
-        if (canJump)
+    if (pInput.right)
+    {
+        if (playerV1.x + m_playerConfig.SPEED < m_playerConfig.MAXSPEED)
         {
-            playerV2.y += m_playerConfig.JUMP;
-        }
-        else if (state == "Air")
-        {
-            playerV2.y = playerV1.y + m_playerConfig.GRAVITY;
+            playerV2.x = playerV1.x + m_playerConfig.SPEED;
         }
     }
-    //else            {playerV.y = 0.0f;}
-        
+
+    if (pInput.left)            
+    {
+        playerV2.x -= m_playerConfig.SPEED;
+    }
+
+    if(pInput.up)
+    {
+        if (canJump)
+        {
+            playerV1.y = m_playerConfig.JUMP;
+            canJump = false;
+            state = "Air";
+        }
+    }
+    if (state == "Air")
+    {
+        playerV2.y = playerV1.y + m_playerConfig.GRAVITY;
+    }
+    pTransform.velocity = playerV2;
+    pTransform.pos += playerV2;
+
     //  Move the bullets on the map
 	for ( auto e : m_entityManager.getEntities ( "bullet" ) )
 	{
@@ -239,9 +250,6 @@ void Scene_Play::sMovement()
 			entityX.pos.x -= entityX.velocity.x;
         }
 	}
-     
-    //pTransform.velocity = playerV;
-    pTransform.pos += playerV2;
 }
 
 void Scene_Play::sLifespan()
@@ -305,17 +313,17 @@ void Scene_Play::sCollision ()
                 if ( pTransform.prevPos.y < pTransform.pos.y )
                 {
                     //  Top Collision: Push player back so they are standing on the item
-                    pTransform.pos.y = pTransform.prevPos.y - collisionCheck.y;
+                    pTransform.pos.y = pTransform.prevPos.y ;
                     m_player->addComponent<CState>().state = "Stand";
                     m_player->getComponent<CInput>().canJump = true;
-                    m_player->getComponent<CTransform>().velocity.y = 0.0f;
+                    //m_player->getComponent<CTransform>().velocity.y = 0.0f;
                     
                 }
                 else
                 {
                     //  Bottom Collision:  move player down
                     pTransform.pos.y = pTransform.prevPos.y;
-
+                    pTransform.velocity.y = 0.0f;
 					//  check that it isn't a side collision
 					auto tileBottom = ( ( tTransform.pos.y ) + ( tSize.y * 0.5 ) );
 					auto playerH = ( pTransform.pos.y - (pSize.y * 0.5) + 10 );
@@ -398,9 +406,9 @@ void Scene_Play::sDoAction(const Action& action)
             m_player->getComponent<CTransform>().scale = Vec2(-1.0f, 1.0f);
             if (state == "Stand")       {state = "Run";}
         }
-        else if ( action.name () == "UP" && PlayerInput.canJump )       
+        else if ( action.name () == "UP" )       
         {
-            PlayerInput.up = true; 
+            PlayerInput.up = true;
         }
         else if ( action.name () == "SHOOT" ) 
 		{
@@ -432,12 +440,7 @@ void Scene_Play::sDoAction(const Action& action)
         else if (action.name() == "UP") 
         { 
             PlayerInput.up = false; 
-            PlayerInput.canJump = false;
-        }
-
-        else if (action.name() == "DOWN") 
-        { 
-            PlayerInput.down = false; 
+            m_player->getComponent<CTransform>().velocity.y == 0.0f;
         }
 
 		else if ( action.name () == "SHOOT" )
