@@ -220,7 +220,7 @@ void Scene_Play::sMovement()
         playerV2.x -= m_playerConfig.SPEED;
     }
 
-    if(pInput.up)
+    else if(pInput.up)
     {
         if (canJump)
         {
@@ -229,7 +229,7 @@ void Scene_Play::sMovement()
             state = "Air";
         }
     }
-    if (state == "Air")
+    if ( state == "Air")
     {
         playerV2.y = playerV1.y + m_playerConfig.GRAVITY;
     }
@@ -298,10 +298,11 @@ void Scene_Play::sCollision ()
         }
         
         //  Perform player / tile collision check by calling getOverlap()
-        auto collisionCheck = ( Physics::GetOverlap ( m_player, tile ) );
-
+        auto collisionCheck = Physics::GetOverlap ( m_player, tile );
+        
+        
         //  Note: A positive number means a collision has occurred
-		if ( ( collisionCheck.x ) > 0 && ( collisionCheck.y > 0 ) )
+		if ( collisionCheck.x > 0 && collisionCheck.y > 0 )
 		{
 			//  An overlap has occured getPreviousOverlap()
 			auto prevCollision = ( Physics::GetPreviousOverlap ( m_player, tile ) );			
@@ -316,6 +317,7 @@ void Scene_Play::sCollision ()
                     pTransform.pos.y = pTransform.prevPos.y ;
                     m_player->addComponent<CState>().state = "Stand";
                     m_player->getComponent<CInput>().canJump = true;
+                    m_player->addComponent<CInput>().down = false;
                     //m_player->getComponent<CTransform>().velocity.y = 0.0f;
                     
                 }
@@ -359,6 +361,7 @@ void Scene_Play::sCollision ()
             //  TODO: If there was no prev overlap (i.e. collision came diagonally) push up (Optional to pick up or side push
 
         }
+        m_player->getComponent<CState>().state;
     }
 
 	//  Check if the players has fallen down a hole
