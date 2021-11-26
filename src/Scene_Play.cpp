@@ -35,11 +35,10 @@ void Scene_Play::init(const std::string & levelPath)
     registerAction(sf::Keyboard::T,     "TOGGLE_TEXTURE");          // Toggle drawing (T)extures
     registerAction(sf::Keyboard::C,     "TOGGLE_COLLISION");        // Toggle drawing (C)ollision Boxes
     registerAction(sf::Keyboard::G,     "TOGGLE_GRID");             // Toggle drawing (G)rid
-    registerAction(sf::Keyboard::W, "UP");                          // Go Up
-    registerAction(sf::Keyboard::A, "LEFT");                        // Go Left
-    registerAction(sf::Keyboard::D, "RIGHT");                       // Go Right
+    registerAction(sf::Keyboard::W,     "UP");                      // Go Up
+    registerAction(sf::Keyboard::A,     "LEFT");                    // Go Left
+    registerAction(sf::Keyboard::D,     "RIGHT");                   // Go Right
     registerAction(sf::Keyboard::Space, "SHOOT");                   // Spawn a bullet when space bar is pressed
-
 
     m_gridText.setCharacterSize(12);
     m_gridText.setFont(m_game->assets().getFont("Arial"));
@@ -47,14 +46,10 @@ void Scene_Play::init(const std::string & levelPath)
     loadLevel(levelPath);
 }
 
+//  This function takes in a grid (x,y) position and an Entity
+//  Return a Vec2 indicating where the CENTER position of the Entity should be
 Vec2 Scene_Play::gridToMidPixel(float gridX, float gridY, std::shared_ptr<Entity> entity)
 {
-    // TODO: This function takes in a grid (x,y) position and an Entity
-    //       Return a Vec2 indicating where the CENTER position of the Entity should be
-    //       You must use the Entity's Animation size to position it correctly
-    //       The size of the grid width and height is stored in m_gridSize.x and m_gridSize.y
-    //       The bottom-left corner of the Animation should align with the bottom left of the grid cell
-    
     const std::string& tempName = entity->getComponent<CAnimation>().animation.getName();
     auto& aSize = m_game->assets().getAnimation(tempName).getSize();
     float entityCenterX = gridX * m_gridSize.x + (aSize.x / 2);
@@ -77,9 +72,8 @@ void Scene_Play::loadLevel(const std::string & filename)
         std::string firstWord;
         std::string type;
         int pos_x, pos_y;
-        
-
         iss >> firstWord;
+
         if (firstWord == "Player") 
         {
             playerInput = true;
@@ -112,44 +106,7 @@ void Scene_Play::loadLevel(const std::string & filename)
             std::cout << "Error in file reading";
         }
     }
-   
     spawnPlayer();
-    
-    // some sample entities
-    // auto brick = m_entityManager.addEntity("tile");
-    // IMPORTANT: always add the CAnimation component first so that gridToMidPixel can compute correctly
-    // brick->addComponent<CAnimation>(m_game->assets().getAnimation("Brick"), true);
-    // brick->addComponent<CTransform>(Vec2(96, 480));
-    // NOTE: You final code should position the entity with the grid x,y position read from the file:
-    // brick->addComponent<CTransform>(gridToMidPixel(gridX, gridY, brick);
-
-    // if (brick->getComponent<CAnimation>().animation.getName() == "Brick")
-    //{
-    //  std::cout << "This could be a good way of identifying if a tile is a brick!\n";
-    //}
-
-    // auto block = m_entityManager.addEntity("tile");
-    // block->addComponent<CAnimation>(m_game->assets().getAnimation("Block"), true);
-    // block->addComponent<CTransform>(Vec2(224, 480));
-    // add a bounding box, this will now show up if we press the 'C' key
-    // block->addComponent<CBoundingBox>(m_game->assets().getAnimation("Block").getSize());
-                              
-    //auto question = m_entityManager.addEntity("tile");
-    //question->addComponent<CAnimation>(m_game->assets().getAnimation("Question"), true);
-    //question->addComponent<CTransform>(Vec2(352, 480));
-
-    // NOTE: THIS IS INCREDIBLY IMPORTANT PLEASE READ THIS EXAMPLE
-    //       Components are now returned as references rather than pointers
-    //       If you do not specify a reference variable type, it will COPY the component
-    //       Here is an example:
-    //
-    //       This will COPY the transform into the variable 'transform1' - it is INCORRECT
-    //       Any changes you make to transform1 will not be changed inside the entity
-    //       auto transform1 = entity->get<CTransform>()
-    //
-    //       This will REFERENCE the transform with the variable 'transform2' - it is CORRECT
-    //       Now any changes you make to transform2 will be changed inside the entity
-    //       auto & transform2 = entity->get<CTransform>()
 }
 
 void Scene_Play::spawnPlayer()
@@ -164,7 +121,6 @@ void Scene_Play::spawnPlayer()
 
 void Scene_Play::spawnBullet(std::shared_ptr<Entity> entity)
 {
-
     //  Reference the entities Transform attributes
     auto& player = entity->getComponent<CTransform> ();
     
@@ -183,7 +139,6 @@ void Scene_Play::update()
     m_entityManager.update();
 
     // TODO: implement pause functionality
-
     sMovement();
     sLifespan();
     sCollision();
@@ -191,36 +146,39 @@ void Scene_Play::update()
     sRender();
 }
 
+//  Implement player movement / jumping based on its CInput component
+//  Implement gravity's effect on the player
+//  Implement the maximum player speed in both X and Y directions
+//  Setting an entity's scale.x to -1/1 will make it face to the left/right
 void Scene_Play::sMovement()
 {
-    // TODO: Implement player movement / jumping based on its CInput component
-    // TODO: Implement gravity's effect on the player
-    // TODO: Implement the maximum player speed in both X and Y directions
-    // NOTE: Setting an entity's scale.x to -1/1 will make it face to the left/right
-
     auto& pTransform = m_player->getComponent<CTransform>();
     auto& pInput = m_player->getComponent<CInput>();
     Vec2& playerV1 = m_player->getComponent<CTransform>().velocity;
     Vec2 playerV2 = Vec2(0.0f, 0.0f);
     auto& state = m_player->getComponent<CState>().state;
     auto& canJump = m_player->getComponent<CInput>().canJump;
+   
     //  Store previous position before updating
     pTransform.prevPos = pTransform.pos;
 
     if (pInput.right)
     {
-        if (playerV1.x + m_playerConfig.SPEED < m_playerConfig.MAXSPEED)
+        if (playerV1.x + m_playerConfig.SPEED <= m_playerConfig.MAXSPEED)
         {
             playerV2.x = playerV1.x + m_playerConfig.SPEED;
         }
+        else { playerV2.x += m_playerConfig.SPEED; }
     }
-
-    if (pInput.left)            
+    if (pInput.left)
     {
-        playerV2.x -= m_playerConfig.SPEED;
+        if (playerV1.x - m_playerConfig.SPEED >= m_playerConfig.MAXSPEED)
+        {
+            playerV2.x = playerV1.x - m_playerConfig.SPEED;
+        }
+        else { playerV2.x -= m_playerConfig.SPEED; }
     }
-
-    else if(pInput.up)
+    if(pInput.up)
     {
         if (canJump)
         {
@@ -229,10 +187,12 @@ void Scene_Play::sMovement()
             state = "Air";
         }
     }
-    if ( state == "Air")
+
+    if ( pInput.down ||state == "Air")
     {
         playerV2.y = playerV1.y + m_playerConfig.GRAVITY;
     }
+
     pTransform.velocity = playerV2;
     pTransform.pos += playerV2;
 
@@ -268,103 +228,110 @@ void Scene_Play::sCollision ()
     //Get the players size & transform components
 	auto& pSize = Vec2(m_playerConfig.CX, m_playerConfig.CY);
 	auto& pTransform = m_player->getComponent<CTransform> ();
+    
+    //m_player->getComponent<CInput>().down = true;
+    bool noCollisionUnder = true;
 
-    for ( auto tile : m_entityManager.getEntities ( "tile" ) )
+    for (auto tile : m_entityManager.getEntities("tile"))
     {
         //  Quick references to the tile
         //  auto& tAnimation = tile->getComponent<CAnimation>().animation;
-        auto& tName = tile->getComponent<CAnimation> ().animation.getName();
+        auto& tName = tile->getComponent<CAnimation>().animation.getName();
         auto& tSize = tile->getComponent<CBoundingBox>().size;
-        auto& tTransform = tile->getComponent<CTransform> ();
+        auto& tTransform = tile->getComponent<CTransform>();
 
         //  Implement bullet / tile collisions
-        for ( auto bullet : m_entityManager.getEntities ( "bullet" ) )
+        for (auto bullet : m_entityManager.getEntities("bullet"))
         {
             //  Check for a collision with the Physics.getOverlap ()  
             //  Note: A positive number means a collision has occurred
-            auto collisionCheck = ( Physics::GetOverlap ( bullet, tile ) );
-            if ( ( collisionCheck.x ) > 0 && ( collisionCheck.y > 0 ) )
+            auto collisionCheck = (Physics::GetOverlap(bullet, tile));
+            if ((collisionCheck.x) > 0 && (collisionCheck.y > 0))
             {
                 //  A collision has occurred destroy the bullet
-                bullet->destroy ();
+                bullet->destroy();
                 //  Check if the tile is a brick which can be destroyed by a bullet
-                if ( tName == "Brick" )
+                if (tName == "Brick")
                 {
-                    tile->destroy ();
+                    tile->destroy();
                     tile->addComponent<CAnimation>(m_game->assets().getAnimation("Explosion"), false);
                     std::cout << "Explosion";
                 }
             }
         }
-        
+
         //  Perform player / tile collision check by calling getOverlap()
-        auto collisionCheck = Physics::GetOverlap ( m_player, tile );
-        
-        
+        auto collisionCheck = Physics::GetOverlap(m_player, tile);
+
         //  Note: A positive number means a collision has occurred
-		if ( collisionCheck.x > 0 && collisionCheck.y > 0 )
-		{
-			//  An overlap has occured getPreviousOverlap()
-			auto prevCollision = ( Physics::GetPreviousOverlap ( m_player, tile ) );			
+        if (collisionCheck.x > 0 && collisionCheck.y > 0)
+        {
+            //  An overlap has occured getPreviousOverlap()
+            auto prevCollision = (Physics::GetPreviousOverlap(m_player, tile));
 
             //  Check if collision came from the top or bottom
-            if ( prevCollision.x > 0 )
+            if (prevCollision.x > 0)
             {
                 //  Check if collision came from the top
-                if ( pTransform.prevPos.y < pTransform.pos.y )
+                if (pTransform.prevPos.y <= pTransform.pos.y)
                 {
                     //  Top Collision: Push player back so they are standing on the item
-                    pTransform.pos.y = pTransform.prevPos.y ;
-                    m_player->addComponent<CState>().state = "Stand";
-                    m_player->getComponent<CInput>().canJump = true;
-                    m_player->addComponent<CInput>().down = false;
-                    //m_player->getComponent<CTransform>().velocity.y = 0.0f;
+                    pTransform.pos.y = pTransform.prevPos.y;
                     
+                    if (m_player->getComponent<CState>().state == "Air") 
+                    {
+                        m_player->getComponent<CState>().state = "Stand";
+                    }
+                    m_player->getComponent<CInput>().canJump = true;
+                    m_player->getComponent<CInput>().down = false;
+                    noCollisionUnder = false;
                 }
                 else
                 {
                     //  Bottom Collision:  move player down
                     pTransform.pos.y = pTransform.prevPos.y;
                     pTransform.velocity.y = 0.0f;
-					//  check that it isn't a side collision
-					auto tileBottom = ( ( tTransform.pos.y ) + ( tSize.y * 0.5 ) );
-					auto playerH = ( pTransform.pos.y - (pSize.y * 0.5) + 10 );
-                    if ( playerH > tileBottom )
+                    //  check that it isn't a side collision
+                    auto tileBottom = ((tTransform.pos.y) + (tSize.y * 0.5));
+                    auto playerH = (pTransform.pos.y - (pSize.y * 0.5) + 10);
+                    if (playerH > tileBottom)
                     {
                         //  Check if object is a brick
-                        if ( tName == "Brick" )
+                        if (tName == "Brick")
                         {
-                            tile->destroy ();
+                            tile->destroy();
                             break;
                         }
                         //  If it is a question activate the coin animation
-                        if ( tName == "Question" )
+                        if (tName == "Question")
                         {
                             //  Activate the coin animation
-						    auto coin = m_entityManager.addEntity ( "dec" );
-						    coin->addComponent<CAnimation> ( m_game->assets ().getAnimation ( "Coin" ), false );
+                            auto coin = m_entityManager.addEntity("dec");
+                            coin->addComponent<CAnimation>(m_game->assets().getAnimation("Coin"), false);
                             //  Position the coin above the question box
                             auto addH = tTransform.pos.y - tSize.y;
-						    coin->addComponent<CTransform> ( Vec2(tTransform.pos.x, addH) );
+                            coin->addComponent<CTransform>(Vec2(tTransform.pos.x, addH));
                         }
-                    }                    
+                    }
                 }
             }
-            
+
             //  Check prevpos.y for a side collision
-            if (prevCollision.y  > 0  )
+            if (prevCollision.y > 0)
             {
                 //   Note there are no special circumstances if it came from left or right
                 pTransform.pos.x = pTransform.prevPos.x;
             }
-
             //  TODO: If there was no prev overlap (i.e. collision came diagonally) push up (Optional to pick up or side push
 
         }
-        m_player->getComponent<CState>().state;
     }
 
-	//  Check if the players has fallen down a hole
+    if (noCollisionUnder && pTransform.velocity.y == 0.0f) {
+        m_player->getComponent<CInput>().down = true;
+
+    }
+    //  Check if the players has fallen down a hole
 	if ( ( pTransform.pos.y - ( pSize.y / 2 ) ) > height () )
 	{
 		//  Player has died, respawn
@@ -375,8 +342,6 @@ void Scene_Play::sCollision ()
     //       Update the CState component of the player to store whether
     //       it is currently on the ground or in the air. This will be
     //       used by the Animation system
-	 //  Set players velocity to 0 so that gravity pulls them back down from the jump
-	//pTransform.velocity.y = 0;
 
     //  Prevent the player from walking off the left side of the map
     if ((pTransform.pos.x - (pSize.x / 2)) < 0)
@@ -431,7 +396,9 @@ void Scene_Play::sDoAction(const Action& action)
         if (action.name() == "RIGHT")
         { 
             PlayerInput.right = false;
-            if (state == "Run")     {state = "Stand";}
+            if (state == "Run")     {
+                state = "Stand";
+            }
         }
 
         else if (action.name() == "LEFT")
@@ -459,7 +426,7 @@ void Scene_Play::sAnimation()
     // set the animation of the player based on its CState component
     auto state = m_player->getComponent<CState>().state;
     m_player->addComponent<CAnimation>(m_game->assets().getAnimation(state), true);
-
+    m_player->getComponent<CAnimation>().animation.update();
     // for each entity with an animation, call entity->getComponent<CAnimation>().animation.update()
     
     for (auto e : m_entityManager.getEntities()) 
