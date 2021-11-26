@@ -30,15 +30,15 @@ Scene_Play::Scene_Play(GameEngine * gameEngine, const std::string & levelPath)
 
 void Scene_Play::init(const std::string & levelPath)
 {
-    registerAction(sf::Keyboard::P,     "PAUSE");
-    registerAction(sf::Keyboard::Escape,"QUIT");
-    registerAction(sf::Keyboard::T,     "TOGGLE_TEXTURE");          // Toggle drawing (T)extures
-    registerAction(sf::Keyboard::C,     "TOGGLE_COLLISION");        // Toggle drawing (C)ollision Boxes
-    registerAction(sf::Keyboard::G,     "TOGGLE_GRID");             // Toggle drawing (G)rid
-    registerAction(sf::Keyboard::W,     "UP");                      // Go Up
-    registerAction(sf::Keyboard::A,     "LEFT");                    // Go Left
-    registerAction(sf::Keyboard::D,     "RIGHT");                   // Go Right
-    registerAction(sf::Keyboard::Space, "SHOOT");                   // Spawn a bullet when space bar is pressed
+    registerAction(sf::Keyboard::P,             "PAUSE");                               //  Pause the game
+    registerAction(sf::Keyboard::Escape,   "QUIT");                                 //  Exit to menu if in game and exit window if in menu
+    registerAction(sf::Keyboard::T,             "TOGGLE_TEXTURE");         // Toggle drawing (T)extures
+    registerAction(sf::Keyboard::C,             "TOGGLE_COLLISION");      // Toggle drawing (C)ollision Boxes
+    registerAction(sf::Keyboard::G,             "TOGGLE_GRID");               // Toggle drawing (G)rid
+    registerAction(sf::Keyboard::W,            "JUMP");                              // The player is jumping
+    registerAction(sf::Keyboard::A,             "LEFT");                                // Go Left
+    registerAction(sf::Keyboard::D,             "RIGHT");                            // Go Right
+    registerAction(sf::Keyboard::Space,     "SHOOT");                           // Spawn a bullet when space bar is pressed
 
     m_gridText.setCharacterSize(12);
     m_gridText.setFont(m_game->assets().getFont("Arial"));
@@ -47,25 +47,31 @@ void Scene_Play::init(const std::string & levelPath)
 }
 
 //  This function takes in a grid (x,y) position and an Entity
-//  Return a Vec2 indicating where the CENTER position of the Entity should be
+//  Return a Vec2 indicating where the CENTER position of the Entity is
 Vec2 Scene_Play::gridToMidPixel(float gridX, float gridY, std::shared_ptr<Entity> entity)
 {
+    //  Get references to the entities name and size attributes
     const std::string& tempName = entity->getComponent<CAnimation>().animation.getName();
     auto& aSize = m_game->assets().getAnimation(tempName).getSize();
+    //  Calculate new coordinates for the center of the entity
     float entityCenterX = gridX * m_gridSize.x + (aSize.x / 2);
     float entityCenterY = ((height() / m_gridSize.y) - gridY)* m_gridSize.y - (aSize.y / 2);
 
     return Vec2(entityCenterX, entityCenterY);
 }
-                              
+                  
+//  Read in the level file and assign the assets to their starting positions
 void Scene_Play::loadLevel(const std::string & filename)
 {
-    // reset the entity manager every time we load a level
+    //  Reset the entity manager every time we load a level
     m_entityManager = EntityManager();
 
+    //  Prepare to read in the level file
     std::ifstream fin(filename);
     std::string line;
     bool playerInput = false;
+
+    //  Read in the level file and assign the attributes
     while (std::getline(fin, line)) 
     {
         std::istringstream iss(line);
@@ -109,16 +115,18 @@ void Scene_Play::loadLevel(const std::string & filename)
     spawnPlayer();
 }
 
+//  Spawn the players character at the start of the game
+//  This is also used as the players re-spawn point when they die
 void Scene_Play::spawnPlayer()
 {
+    //  Spawn the player's on screen character with the attributes read in from the level file
     m_player = m_entityManager.addEntity("player");
     m_player->addComponent<CAnimation>(m_game->assets().getAnimation("Stand"), true);
     m_player->addComponent<CTransform>(Vec2 ( gridToMidPixel(m_playerConfig.X, m_playerConfig.Y, m_player)), Vec2( m_playerConfig.SPEED, m_playerConfig.MAXSPEED), Vec2(1.0, 1.0), 0.0 );
     m_player->addComponent<CBoundingBox>(Vec2 (m_playerConfig.CX, m_playerConfig.CY));
-    
-    // TODO: be sure to add the remaining components to the player
 }
 
+//  Spawn bullets
 void Scene_Play::spawnBullet(std::shared_ptr<Entity> entity)
 {
     //  Reference the entities Transform attributes
@@ -134,65 +142,80 @@ void Scene_Play::spawnBullet(std::shared_ptr<Entity> entity)
     bullet->addComponent<CBoundingBox> ( m_game->assets ().getAnimation ( m_playerConfig.WEAPON ).getSize () );
 }
 
+//  Update all entities on the screen and entity systems
 void Scene_Play::update()
 {
-    m_entityManager.update();
+    //  Pause systems when the game is paused
+    if (m_paused)
+    {
+        //  No systems should update when the game is paused
+    }
+    else 
+    {
+        //  Update all entities on the screen 
+        m_entityManager.update();
+        //  Update all systems
+        sMovement();
+        sLifespan();
+        sCollision();
+        sAnimation();
+        sRender();
+    }
 
-    // TODO: implement pause functionality
-    sMovement();
-    sLifespan();
-    sCollision();
-    sAnimation();
-    sRender();
 }
 
-//  Implement player movement / jumping based on its CInput component
-//  Implement gravity's effect on the player
-//  Implement the maximum player speed in both X and Y directions
-//  Setting an entity's scale.x to -1/1 will make it face to the left/right
+//  Update the positions of all entities on the screen 
+//  Applying gravity as needed
 void Scene_Play::sMovement()
 {
-    auto& pTransform = m_player->getComponent<CTransform>();
-    auto& pInput = m_player->getComponent<CInput>();
-    Vec2& playerV1 = m_player->getComponent<CTransform>().velocity;
-    Vec2 playerV2 = Vec2(0.0f, 0.0f);
-    auto& state = m_player->getComponent<CState>().state;
-    auto& canJump = m_player->getComponent<CInput>().canJump;
+    auto& pTransform = m_player->getComponent<CTransform>();                //  Get a reference to the players Transform attributes
+    auto& pInput = m_player->getComponent<CInput>();                                 //  Get a reference to the players Input attributes
+    auto& playerV1 = m_player->getComponent<CTransform>().velocity;     //  Get a reference to the players velocity
+    auto    playerV2 = Vec2(0.0f, 0.0f);                                                                    //  A new variable to hold the players updated velocity
+    auto& state = m_player->getComponent<CState>().state;                          //  Get a reference to the players State attributes
+    auto& canJump = m_player->getComponent<CInput>().canJump;           //  Get a reference to the players canJump attribute
    
     //  Store previous position before updating
     pTransform.prevPos = pTransform.pos;
 
+    //  Update player movement based on input
     if (pInput.right)
     {
+        //  Update the players scale, speed and velocity
+        { 
+            state = "Run"; 
+        }
         if (playerV1.x + m_playerConfig.SPEED <= m_playerConfig.MAXSPEED)
         {
-            playerV2.x = playerV1.x + m_playerConfig.SPEED;
+            playerV2.x += m_playerConfig.SPEED;
         }
-        else { playerV2.x += m_playerConfig.SPEED; }
+        //  Player is at maximum speed
+        else { playerV2.x += m_playerConfig.MAXSPEED; }
     }
     if (pInput.left)
     {
-        if (playerV1.x - m_playerConfig.SPEED >= m_playerConfig.MAXSPEED)
-        {
-            playerV2.x = playerV1.x - m_playerConfig.SPEED;
-        }
-        else { playerV2.x -= m_playerConfig.SPEED; }
+        playerV2.x -= m_playerConfig.SPEED;
+//     This won't happen as it is subtraction, we already prevented it going over in the last stmt for right
+//         if (playerV1.x - m_playerConfig.SPEED >= m_playerConfig.MAXSPEED)
+//         {
+//             playerV2.x = playerV1.x - m_playerConfig.SPEED;
+//         }
+//         else { playerV2.x -= m_playerConfig.SPEED; }
     }
+	//  If the player is already in the air pull them down
+	if ( pInput.down || state == "Air" )
+	{
+		playerV2.y = playerV1.y + m_playerConfig.GRAVITY;
+	}
+    // Verification that player can jump occurs at conversion of input to bool variable in DoAction
     if(pInput.up)
     {
-        if (canJump)
-        {
-            playerV1.y = m_playerConfig.JUMP;
-            canJump = false;
-            state = "Air";
-        }
+        playerV1.y = m_playerConfig.JUMP;
+        canJump = false;
+        state = "Air";
     }
 
-    if ( pInput.down ||state == "Air")
-    {
-        playerV2.y = playerV1.y + m_playerConfig.GRAVITY;
-    }
-
+    //  Update the players position and velocity
     pTransform.velocity = playerV2;
     pTransform.pos += playerV2;
 
@@ -229,7 +252,7 @@ void Scene_Play::sCollision ()
 	auto& pSize = Vec2(m_playerConfig.CX, m_playerConfig.CY);
 	auto& pTransform = m_player->getComponent<CTransform> ();
     
-    //m_player->getComponent<CInput>().down = true;
+    m_player->getComponent<CInput>().down = true;
     bool noCollisionUnder = true;
 
     for (auto tile : m_entityManager.getEntities("tile"))
@@ -291,9 +314,8 @@ void Scene_Play::sCollision ()
                     //  Bottom Collision:  move player down
                     pTransform.pos.y = pTransform.prevPos.y;
                     pTransform.velocity.y = 0.0f;
-                    //  check that it isn't a side collision
-                    auto tileBottom = ((tTransform.pos.y) + (tSize.y * 0.5));
-                    auto playerH = (pTransform.pos.y - (pSize.y * 0.5) + 10);
+                    //  check that it isn't a side collision, this was causing double collisions
+                    auto playerH = (pTransform.pos.y - (pSize.y * 0.5) + 10);               //  Reference to the top of the player
                     if (playerH > tileBottom)
                     {
                         //  Check if object is a brick
@@ -307,7 +329,8 @@ void Scene_Play::sCollision ()
                         {
                             //  Activate the coin animation
                             auto coin = m_entityManager.addEntity("dec");
-                            coin->addComponent<CAnimation>(m_game->assets().getAnimation("Coin"), false);
+                            coin->addComponent<CAnimation>(m_game->assets().getAnimation("Coin"), true);
+                            //  TODO: Add lifespan to the coin
                             //  Position the coin above the question box
                             auto addH = tTransform.pos.y - tSize.y;
                             coin->addComponent<CTransform>(Vec2(tTransform.pos.x, addH));
@@ -334,7 +357,7 @@ void Scene_Play::sCollision ()
     //  Check if the players has fallen down a hole
 	if ( ( pTransform.pos.y - ( pSize.y / 2 ) ) > height () )
 	{
-		//  Player has died, respawn
+		//  Player has died, re-spawn
 		m_player->destroy ();
 		spawnPlayer ();
 	}
@@ -353,15 +376,19 @@ void Scene_Play::sCollision ()
 void Scene_Play::sDoAction(const Action& action)
 {
     auto & state = m_player->getComponent<CState>().state;
-    auto & PlayerInput = m_player->getComponent<CInput>();
+    auto & playerInput = m_player->getComponent<CInput>();
 
+    //  At the start of the action, get the requested action
     if ( action.type () == "START" )
     {
-        if ( action.name () == "TOGGLE_TEXTURE" )               { m_drawTextures = !m_drawTextures; }
-        else if ( action.name () == "TOGGLE_COLLISION" )        { m_drawCollision = !m_drawCollision; }
-        else if ( action.name () == "TOGGLE_GRID" )             { m_drawGrid = !m_drawGrid; }
-        else if ( action.name () == "PAUSE" )                   { setPaused ( !m_paused ); }
-        else if ( action.name () == "QUIT" )                    { onEnd (); }
+        //  Game settings
+                if ( action.name () == "TOGGLE_TEXTURE" )               { m_drawTextures = !m_drawTextures; }
+        else if ( action.name () == "TOGGLE_COLLISION" )            { m_drawCollision = !m_drawCollision; }
+        else if ( action.name () == "TOGGLE_GRID" )                      { m_drawGrid = !m_drawGrid; }
+        else if ( action.name () == "PAUSE" )                                    { setPaused ( !m_paused ); }
+        else if ( action.name () == "QUIT" )                                      { onEnd (); }
+
+        //  Player movement inputs
         else if (action.name() == "RIGHT")
         {
             PlayerInput.right = true;
@@ -370,53 +397,57 @@ void Scene_Play::sDoAction(const Action& action)
         }
         else if (action.name() == "LEFT") 
         { 
-            PlayerInput.left = true;
+            playerInput.left = true;
             m_player->getComponent<CTransform>().scale = Vec2(-1.0f, 1.0f);
             if (state == "Stand")       {state = "Run";}
         }
-        else if ( action.name () == "UP" )       
+        else if ( action.name () == "JUMP" )       
         {
-            PlayerInput.up = true;
+            //  Check if the player is not already jumping
+            if (playerInput.canJump)
+            {
+                playerInput.up = true;
+            }
         }
         else if ( action.name () == "SHOOT" ) 
 		{
             // Spawn a bullet at the players location
-            if (PlayerInput.canShoot )
+            if (playerInput.canShoot )
             {
                 spawnBullet ( m_player );
-                PlayerInput.shoot = true;
+                playerInput.shoot = true;
 
                 //  Prevent the player from firing another bullet until the space bar is released
-                PlayerInput.canShoot = false;
+                playerInput.canShoot = false;
             }
 		}
     }
+
+    //  The Action has ended
     else if (action.type() == "END")
     {
         if (action.name() == "RIGHT")
         { 
-            PlayerInput.right = false;
+            playerInput.right = false;
             if (state == "Run")     {
                 state = "Stand";
             }
         }
-
         else if (action.name() == "LEFT")
         {
-            PlayerInput.left = false;
+            playerInput.left = false;
             if (state == "Run")     { state = "Stand";}
         }
-
-        else if (action.name() == "UP") 
+        else if (action.name() == "JUMP") 
         { 
-            PlayerInput.up = false; 
+            playerInput.up = false;
+            //TODO: Have to move this to movement i think Constance
             m_player->getComponent<CTransform>().velocity.y == 0.0f;
         }
-
 		else if ( action.name () == "SHOOT" )
 		{
-            PlayerInput.shoot = false;
-            PlayerInput.canShoot = true;
+            playerInput.shoot = false;
+            playerInput.canShoot = true;
 		}
     }
 }

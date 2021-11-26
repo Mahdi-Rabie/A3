@@ -1,2 +1,3 @@
 ﻿  Scene_Play.cpp
+C:\Users\Zadiu\OneDrive\Personal\Return to school\COMP 4300\Assignment 3\Partner A3\2ndTry\A3\src\Scene_Play.cpp(446,61): warning C4553: '==': result of expression not used; did you intend '='?
   SFMLGame.vcxproj -> C:\Users\Zadiu\OneDrive\Personal\Return to school\COMP 4300\Assignment 3\Partner A3\2ndTry\A3\bin\SFMLGame_d.exe
