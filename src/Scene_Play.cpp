@@ -240,7 +240,27 @@ void Scene_Play::sMovement()
 
 void Scene_Play::sLifespan()
 {
-    // TODO: Check lifespan of entities that have them, and destroy them if they go over
+    // TODO:  Check all entities with a lifespan and destroy them if they go over
+	
+	for ( auto entity : m_entityManager.getEntities("tile") )
+	{
+        //  Check for an animation component
+        try
+        {
+            auto& hasAna = entity->getComponent<CAnimation> ();
+        }
+        catch (...)
+        {
+            continue;
+        }
+        //  Check if the entity is at the end of it's lifespan
+        bool anaEnd = entity->getComponent<CAnimation> ().animation.hasEnded ();
+		 //  If entity is a question box ignore
+        if ( anaEnd && ( entity->getComponent<CAnimation> ().animation.getName() != "Question" ))  
+		{           
+			entity->destroy();
+		}
+	}
 }
 
 void Scene_Play::sCollision ()
@@ -330,13 +350,18 @@ void Scene_Play::sCollision ()
                         if (tName == "Brick")
                         {
                             tile->destroy();
+							//  Activate the explosion animation
+							auto explode = m_entityManager.addEntity ( "tile" );
+							explode->addComponent<CAnimation> ( m_game->assets ().getAnimation ( "Explosion" ), true );
+							//  Position the explosion where the brick was
+							explode->addComponent<CTransform> ( Vec2 ( tTransform.pos ) );
                             break;
                         }
                         //  If it is a question activate the coin animation
                         if (tName == "Question")
                         {
                             //  Activate the coin animation
-                            auto coin = m_entityManager.addEntity("dec");
+                            auto coin = m_entityManager.addEntity("tile");
                             coin->addComponent<CAnimation>(m_game->assets().getAnimation("Coin"), true);
                             //  Position the coin above the question box
                             auto addH = tTransform.pos.y - tSize.y;
