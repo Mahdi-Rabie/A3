@@ -38,6 +38,7 @@ public:
     const std::string & getName() const;
     const Vec2 & getSize() const;
     sf::Sprite & getSprite();
+    size_t RunCounter ();
 };
 
                               

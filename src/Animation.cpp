@@ -27,31 +27,67 @@ Animation::Animation(const std::string & name, const sf::Texture & t)
 }
 
 Animation::Animation(const std::string & name, const sf::Texture & t, size_t frameCount, size_t speed)
-    : m_name        (name)
-    , m_sprite      (t)
-    , m_frameCount  (frameCount)
-    , m_currentFrame(0)
-    , m_speed       (speed)
+    : m_name                (name)
+    , m_sprite                (t)
+    , m_frameCount     (frameCount)     //  Total frames of animation for the entity
+    , m_currentFrame  (0)
+    , m_speed               (speed)                 //  Speed of the animation indicates time duration of each frame in each frame
 {
-    m_size = Vec2((float)t.getSize().x / frameCount, (float)t.getSize().y);
+    m_size = Vec2((float)t.getSize().x / frameCount, (float)t.getSize().y);     //  Each individual frame size in the animation
     m_sprite.setOrigin(m_size.x / 2.0f, m_size.y / 2.0f);
     m_sprite.setTextureRect(sf::IntRect(std::floor(m_currentFrame) * m_size.x, 0, m_size.x, m_size.y));
+}
+
+size_t counter = 0;
+size_t Animation::RunCounter() {
+    
+    if (counter == 10)
+    {
+        counter = 0;
+    }
+    else {
+        counter++;
+    }
+    return counter;
 }
 
 // updates the animation to show the next frame, depending on its speed
 // animation loops when it reaches the end
 void Animation::update()
 {
-    // add the speed variable to the current frame
-    // TODO: 1) calculate the correct frame of animation to play based on currentFrame and speed
-    //       2) set the texture rectangle properly (see constructor for sample)
-    size_t frame = 0;
-    m_currentFrame++;
-    if (m_speed > 0)
-    {
-        frame = (m_currentFrame / m_speed) % m_frameCount;
-        m_sprite.setTextureRect(sf::IntRect(frame * m_size.x, 0, m_size.x, m_size.y));
+    auto frame = 0;
 
+	if ( m_name == "Run" )
+	{
+        //  Create another var for frame count because not sure where the frame keeps resetting
+        
+        m_currentFrame =  RunCounter();
+        //  Getting strange error where currentFrame resets to zero on increment 3
+//         if (m_currentFrame == 2)
+//         {
+//             m_currentFrame++;
+//         }
+        
+		//  Calculate the correct frame of animation to play based on currentFrame and speed
+        float fT = float(m_currentFrame) / float(m_speed);    //    % complete
+        frame = floor ( fT * m_frameCount );
+		//frame = ( m_currentFrame / m_speed ) % m_frameCount;
+		//  Set the texture rectangle properly
+		m_sprite.setTextureRect ( sf::IntRect ( frame * m_size.x, 0, m_size.x, m_size.y ) );
+	}
+    else 
+    {
+		//  Increment the life cycle the current animation has lived for
+		
+		//  Prevent division by 0 error
+		if ( m_speed > 0 )
+		{
+            m_currentFrame++;
+			//  Calculate the correct frame of animation to play based on currentFrame and speed
+			frame = ( m_currentFrame / m_speed ) % m_frameCount;
+			//  Set the texture rectangle properly
+			m_sprite.setTextureRect ( sf::IntRect ( frame * m_size.x, 0, m_size.x, m_size.y ) );
+		}
     }
 }
 const Vec2 & Animation::getSize() const
@@ -71,8 +107,9 @@ sf::Sprite & Animation::getSprite()
 
 bool Animation::hasEnded() const
 {
-    // TODO: detect when animation has ended (last frame was played) and return true
-    return false;
+    //  Detect when animation has ended (last frame was played) and return true
+    bool done =  (m_currentFrame == m_frameCount) ?   true : false;
+    return done;
 }
 
 // Copyright (C) David Churchill - All Rights Reserved
