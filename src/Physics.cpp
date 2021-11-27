@@ -19,7 +19,7 @@
 Vec2 Physics::GetOverlap(std::shared_ptr<Entity> a, std::shared_ptr<Entity> b)
 {
     auto	aCheckB = a->hasComponent<CBoundingBox>();
-	auto	bCheckB = b->hasComponent<CBoundingBox> ();
+	auto bCheckB = b->hasComponent<CBoundingBox> ();
 	//		Check if the entity has a bounding box
 	if (!aCheckB || !bCheckB)
 	{
