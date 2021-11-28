@@ -10,6 +10,9 @@
 //  Student Email:   mr1826@mun.ca, cdg165@mun.ca
 //  Student ID:      201025756, 201050531
 //  Group Member(s): [enter student name(s)]
+// 
+//  Minor bugs when colliding to any tiles from the side
+//  player seems to move faster than specified in the config file
 //
 ///\/\\////\///////\////\\\\\\/\\/\/\\////\///////\////\\\\\\/\\
 
@@ -31,15 +34,15 @@ Scene_Play::Scene_Play(GameEngine * gameEngine, const std::string & levelPath)
 //  Register keyboard controls, Set a font and call loadLevel
 void Scene_Play::init(const std::string & levelPath)
 {
-	registerAction ( sf::Keyboard::P,           "PAUSE" );                                 //    Pause the game
-	registerAction ( sf::Keyboard::Escape, "QUIT" );                                   //    Exit to menu if in game and exit window if in menu
-	registerAction ( sf::Keyboard::T,           "TOGGLE_TEXTURE" );           //    Toggle drawing (T)extures
-	registerAction ( sf::Keyboard::C,           "TOGGLE_COLLISION" );        //    Toggle drawing (C)ollision Boxes
-	registerAction ( sf::Keyboard::G,           "TOGGLE_GRID" );                 //    Toggle drawing (G)rid
-	registerAction ( sf::Keyboard::W,          "UP" );                                      //    Go Up/Jumping
-	registerAction ( sf::Keyboard::A,           "LEFT" );                                   //    Go Left
-	registerAction ( sf::Keyboard::D,           "RIGHT" );                               //     Go Right
-	registerAction ( sf::Keyboard::Space,   "SHOOT" );                              //     Spawn a bullet when space bar is pressed
+	registerAction ( sf::Keyboard::P,           "PAUSE" );                          //    Pause the game
+	registerAction ( sf::Keyboard::Escape,      "QUIT" );                           //    Exit to menu if in game and exit window if in menu
+	registerAction ( sf::Keyboard::T,           "TOGGLE_TEXTURE" );                 //    Toggle drawing (T)extures
+	registerAction ( sf::Keyboard::C,           "TOGGLE_COLLISION" );               //    Toggle drawing (C)ollision Boxes
+	registerAction ( sf::Keyboard::G,           "TOGGLE_GRID" );                    //    Toggle drawing (G)rid
+	registerAction ( sf::Keyboard::W,           "UP" );                             //    Go Up/Jumping
+	registerAction ( sf::Keyboard::A,           "LEFT" );                           //    Go Left
+	registerAction ( sf::Keyboard::D,           "RIGHT" );                          //     Go Right
+	registerAction ( sf::Keyboard::Space,       "SHOOT" );                          //     Spawn a bullet when space bar is pressed
 
     m_gridText.setCharacterSize(12);
     m_gridText.setFont(m_game->assets().getFont("Arial"));
@@ -168,12 +171,12 @@ void Scene_Play::update()
 //  Applying gravity as needed
 void Scene_Play::sMovement()
 {
-	auto& pTransform = m_player->getComponent<CTransform> ();                //  Get a reference to the players Transform attributes
-	auto& pInput = m_player->getComponent<CInput> ();                                 //  Get a reference to the players Input attributes
-	auto& playerV1 = m_player->getComponent<CTransform> ().velocity;     //  Get a reference to the players velocity
-	auto    playerV2 = Vec2 ( 0.0f, 0.0f );                                                                  //  A new variable to hold the players updated velocity
-	auto& state = m_player->getComponent<CState> ().state;                          //  Get a reference to the players State attributes
-	auto& canJump = m_player->getComponent<CInput> ().canJump;           //  Get a reference to the players canJump attribute
+	auto& pTransform = m_player->getComponent<CTransform> ();               //  Get a reference to the players Transform attributes
+	auto& pInput = m_player->getComponent<CInput> ();                       //  Get a reference to the players Input attributes
+	auto& playerV1 = m_player->getComponent<CTransform> ().velocity;        //  Get a reference to the players velocity
+	auto    playerV2 = Vec2 ( 0.0f, 0.0f );                                 //  A new variable to hold the players updated velocity
+	auto& state = m_player->getComponent<CState> ().state;                  //  Get a reference to the players State attributes
+	auto& canJump = m_player->getComponent<CInput> ().canJump;              //  Get a reference to the players canJump attribute
    
     //  Store previous position before updating
     pTransform.prevPos = pTransform.pos;
@@ -197,12 +200,12 @@ void Scene_Play::sMovement()
         m_player->getComponent<CTransform> ().scale = Vec2 ( -1.0f, 1.0f );
         if ( state == "Stand" ) { state = "Run"; }
         auto goL = playerV1.x - m_playerConfig.SPEED;
-        if (goL >= m_playerConfig.MAXSPEED)
+        if (goL >= -m_playerConfig.MAXSPEED)
         {
             playerV2.x = goL;
         }
         else { playerV2.x -= m_playerConfig.SPEED; }
-     }
+    }
     if (pInput.up)
     {
         //  Check if the player is already jumping
@@ -213,8 +216,9 @@ void Scene_Play::sMovement()
             state = "Air";
         }
     }
-
-    if ( pInput.down ||state == "Air")
+    
+    // apply gravity to the player when neccessary 
+    if ( pInput.down || state == "Air")
     {
         playerV2.y = playerV1.y + m_playerConfig.GRAVITY;
     }
@@ -255,7 +259,7 @@ void Scene_Play::sLifespan()
         }
         //  Check if the entity is at the end of it's lifespan
         bool anaEnd = entity->getComponent<CAnimation> ().animation.hasEnded ();
-		 //  If entity is a question box ignore
+		//  If entity is a question box ignore
         if ( anaEnd && ( entity->getComponent<CAnimation> ().animation.getName() != "Question" ))  
 		{           
 			entity->destroy();
@@ -265,17 +269,9 @@ void Scene_Play::sLifespan()
 
 void Scene_Play::sCollision ()
 {
-    // REMEMBER: SFML's (0,0) position is on the TOP-LEFT corner
-    //           This means jumping will have a negative y-component
-    //           and gravity will have a positive y-component
-    //           Also, something BELOW something else will have a y value GREATER than it
-    //           Also, something ABOVE something else will have a y value LESS than it
-
     //Get the players size & transform components
 	auto& pSize = m_player->getComponent<CBoundingBox> ().size;
 	auto& pTransform = m_player->getComponent<CTransform> ();
-    
-    //m_player->getComponent<CInput>().down = true;
     bool noCollisionUnder = true;
 
     for (auto tile : m_entityManager.getEntities("tile"))
@@ -299,9 +295,7 @@ void Scene_Play::sCollision ()
                 //  Check if the tile is a brick which can be destroyed by a bullet
                 if (tName == "Brick")
                 {
-                    tile->destroy();
                     tile->addComponent<CAnimation>(m_game->assets().getAnimation("Explosion"), false);
-                    std::cout << "Explosion";
                 }
             }
         }
@@ -322,7 +316,7 @@ void Scene_Play::sCollision ()
                 if (pTransform.prevPos.y <= pTransform.pos.y)
                 {
                     //  Top Collision: Push player back so they are standing on the item
-                    pTransform.pos.y = pTransform.prevPos.y;
+                    pTransform.pos.y = pTransform.prevPos.y ;
                     //  Set Velocity to 0
                     pTransform.velocity.y = 0.0f;
                     
@@ -330,7 +324,10 @@ void Scene_Play::sCollision ()
                     {
                         m_player->getComponent<CState>().state = "Stand";
                     }
-                    m_player->getComponent<CInput>().canJump = true;
+                    if (!m_player->getComponent<CInput>().up)
+                    {
+                        m_player->getComponent<CInput>().canJump = true;
+                    }
                     m_player->getComponent<CInput>().down = false;
                     noCollisionUnder = false;
                 }
