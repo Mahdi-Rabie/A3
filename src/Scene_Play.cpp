@@ -197,7 +197,7 @@ void Scene_Play::sMovement()
         m_player->getComponent<CTransform> ().scale = Vec2 ( -1.0f, 1.0f );
         if ( state == "Stand" ) { state = "Run"; }
         auto goL = playerV1.x - m_playerConfig.SPEED;
-        if (goL >= m_playerConfig.MAXSPEED)
+        if (goL >= -m_playerConfig.MAXSPEED)
         {
             playerV2.x = goL;
         }
@@ -213,7 +213,7 @@ void Scene_Play::sMovement()
             state = "Air";
         }
     }
-
+    //  Apply gravity to the player when neccessary 
     if ( pInput.down ||state == "Air")
     {
         playerV2.y = playerV1.y + m_playerConfig.GRAVITY;
@@ -265,12 +265,6 @@ void Scene_Play::sLifespan()
 
 void Scene_Play::sCollision ()
 {
-    // REMEMBER: SFML's (0,0) position is on the TOP-LEFT corner
-    //           This means jumping will have a negative y-component
-    //           and gravity will have a positive y-component
-    //           Also, something BELOW something else will have a y value GREATER than it
-    //           Also, something ABOVE something else will have a y value LESS than it
-
     //Get the players size & transform components
 	auto& pSize = m_player->getComponent<CBoundingBox> ().size;
 	auto& pTransform = m_player->getComponent<CTransform> ();
@@ -326,11 +320,14 @@ void Scene_Play::sCollision ()
                     //  Set Velocity to 0
                     pTransform.velocity.y = 0.0f;
                     
-                    if (m_player->getComponent<CState>().state == "Air") 
+                    if ( m_player->getComponent<CState> ().state == "Air" )
                     {
-                        m_player->getComponent<CState>().state = "Stand";
+                        m_player->getComponent<CState> ().state = "Stand";
                     }
-                    m_player->getComponent<CInput>().canJump = true;
+					if ( !m_player->getComponent<CInput> ().up )
+					{
+						m_player->getComponent<CInput> ().canJump = true;
+					}
                     m_player->getComponent<CInput>().down = false;
                     noCollisionUnder = false;
                 }
@@ -360,6 +357,9 @@ void Scene_Play::sCollision ()
                         //  If it is a question activate the coin animation
                         if (tName == "Question")
                         {
+                            //  Transition the question box to activated texture and generate coin animation
+                            tile->addComponent<CAnimation>( m_game->assets ().getAnimation ( "Question2" ), true );
+                            tile->addComponent<CTransform>(Vec2(tTransform.pos));
                             //  Activate the coin animation
                             auto coin = m_entityManager.addEntity("tile");
                             coin->addComponent<CAnimation>(m_game->assets().getAnimation("Coin"), true);
@@ -374,8 +374,19 @@ void Scene_Play::sCollision ()
             //  Check prevpos.y for a side collision
             if (prevCollision.y > 0)
             {
+                auto side = pTransform.pos.x - pTransform.prevPos.x;
                 //   Note there are no special circumstances if it came from left or right
-                pTransform.pos.x = pTransform.prevPos.x;
+                if ( side > 0)
+                {
+                    //  Impact came from the left
+                    pTransform.pos.x = pTransform.prevPos.x;
+                }
+                else
+                {
+                    //  Impact came from the right
+                    pTransform.pos.x = pTransform.prevPos.x;
+                }
+                
             }
             //  If there was no prev overlap (i.e. collision came diagonally) push to the side 
             else 
