@@ -77,11 +77,12 @@ void Animation::update()
 	}
     else 
     {
-		//  Increment the life cycle the current animation has lived for
+
 		
 		//  Prevent division by 0 error
 		if ( m_speed > 0 )
-		{
+		{	
+            //  Increment the life cycle the current animation has lived for
             m_currentFrame++;
 			//  Calculate the correct frame of animation to play based on currentFrame and speed
 			frame = ( m_currentFrame / m_speed ) % m_frameCount;
